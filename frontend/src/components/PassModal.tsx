@@ -8,7 +8,7 @@ interface Pass {
   vehicleNumber: string;
   entryDate: string;
   address: string;
-  comment: string;
+  comment: string | null;
 }
 
 interface User {

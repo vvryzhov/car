@@ -43,11 +43,6 @@ const SecurityDashboard = () => {
     }
   };
 
-  const handleFilterChange = () => {
-    setLoading(true);
-    fetchPasses();
-  };
-
   const clearFilters = () => {
     setFilterDate('');
     setFilterVehicleType('');
