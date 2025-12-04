@@ -169,6 +169,7 @@
   width: 100%;
   border-collapse: collapse;
   margin-top: 20px;
+  display: table;
 }
 
 .table th,
@@ -186,6 +187,11 @@
 
 .table tr:hover {
   background-color: #f8f9fa;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .badge {
@@ -310,10 +316,13 @@
     min-width: 100%;
   }
 
+  .table-wrapper {
+    overflow-x: visible;
+  }
+
   .table {
     display: block;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    width: 100%;
   }
 
   .table thead {
@@ -339,6 +348,7 @@
     padding: 8px;
     border: none;
     border-bottom: 1px solid #f0f0f0;
+    white-space: normal;
   }
 
   .table td:before {

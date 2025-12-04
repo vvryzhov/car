@@ -77,36 +77,38 @@ const AdminDashboard = () => {
               <p>Пользователей не найдено</p>
             </div>
           ) : (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Email</th>
-                  <th>ФИО</th>
-                  <th>Адрес</th>
-                  <th>Участок</th>
-                  <th>Телефон</th>
-                  <th>Роль</th>
-                  <th>Дата создания</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u) => (
-                  <tr key={u.id}>
-                    <td>{u.email}</td>
-                    <td>{u.fullName}</td>
-                    <td>{u.address}</td>
-                    <td>{u.plotNumber}</td>
-                    <td>{u.phone}</td>
-                    <td>
-                      <span className={`badge ${u.role === 'admin' ? 'badge-approved' : u.role === 'security' ? 'badge-pending' : ''}`}>
-                        {u.role === 'admin' ? 'Администратор' : u.role === 'security' ? 'Охрана' : 'Пользователь'}
-                      </span>
-                    </td>
-                    <td>{new Date(u.createdAt).toLocaleDateString('ru-RU')}</td>
+            <div className="table-wrapper">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Email</th>
+                    <th>ФИО</th>
+                    <th>Адрес</th>
+                    <th>Участок</th>
+                    <th>Телефон</th>
+                    <th>Роль</th>
+                    <th>Дата создания</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {users.map((u) => (
+                    <tr key={u.id}>
+                      <td data-label="Email">{u.email}</td>
+                      <td data-label="ФИО">{u.fullName}</td>
+                      <td data-label="Адрес">{u.address}</td>
+                      <td data-label="Участок">{u.plotNumber}</td>
+                      <td data-label="Телефон">{u.phone}</td>
+                      <td data-label="Роль">
+                        <span className={`badge ${u.role === 'admin' ? 'badge-approved' : u.role === 'security' ? 'badge-pending' : ''}`}>
+                          {u.role === 'admin' ? 'Администратор' : u.role === 'security' ? 'Охрана' : 'Пользователь'}
+                        </span>
+                      </td>
+                      <td data-label="Дата создания">{new Date(u.createdAt).toLocaleDateString('ru-RU')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>

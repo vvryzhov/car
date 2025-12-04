@@ -112,18 +112,19 @@ const Dashboard = () => {
               </button>
             </div>
           ) : (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Тип транспорта</th>
-                  <th>Номер авто</th>
-                  <th>Дата въезда</th>
-                  <th>Адрес</th>
-                  <th>Комментарий</th>
-                  <th>Статус</th>
-                  <th>Действия</th>
-                </tr>
-              </thead>
+            <div className="table-wrapper">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Тип транспорта</th>
+                    <th>Номер авто</th>
+                    <th>Дата въезда</th>
+                    <th>Адрес</th>
+                    <th>Комментарий</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
+                  </tr>
+                </thead>
               <tbody>
                 {passes.map((pass) => (
                   <tr key={pass.id}>
@@ -163,7 +164,8 @@ const Dashboard = () => {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           )}
         </div>
       </div>

@@ -114,22 +114,23 @@ const SecurityDashboard = () => {
               <p>Заявок не найдено</p>
             </div>
           ) : (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>ФИО</th>
-                  <th>Участок</th>
-                  <th>Телефон</th>
-                  <th>Тип транспорта</th>
-                  <th>Номер авто</th>
-                  <th>Дата въезда</th>
-                  <th>Адрес</th>
-                  <th>Комментарий</th>
-                  <th>Комментарий охраны</th>
-                  <th>Статус</th>
-                  <th>Действия</th>
-                </tr>
-              </thead>
+            <div className="table-wrapper">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>ФИО</th>
+                    <th>Участок</th>
+                    <th>Телефон</th>
+                    <th>Тип транспорта</th>
+                    <th>Номер авто</th>
+                    <th>Дата въезда</th>
+                    <th>Адрес</th>
+                    <th>Комментарий</th>
+                    <th>Комментарий охраны</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
+                  </tr>
+                </thead>
               <tbody>
                 {passes.map((pass) => (
                   <tr key={pass.id}>
@@ -164,7 +165,8 @@ const SecurityDashboard = () => {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           )}
         </div>
       </div>
