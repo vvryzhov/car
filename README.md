@@ -169,3 +169,4 @@ docker-compose up -d
 
 Подробные инструкции по развертыванию см. в [DEPLOY.md](./DEPLOY.md)
 
+2025 год
