@@ -12,9 +12,10 @@
 }
 
 .container {
-  max-width: 1200px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 20px;
+  width: 100%;
 }
 
 .card {
@@ -169,14 +170,16 @@
   width: 100%;
   border-collapse: collapse;
   margin-top: 20px;
-  display: table;
+  table-layout: auto;
 }
 
 .table th,
 .table td {
-  padding: 12px;
+  padding: 12px 8px;
   text-align: left;
   border-bottom: 1px solid #ddd;
+  white-space: normal;
+  word-wrap: break-word;
 }
 
 .table th {
@@ -190,8 +193,8 @@
 }
 
 .table-wrapper {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  overflow: visible;
 }
 
 .badge {
@@ -230,11 +233,13 @@
 }
 
 .header-content {
-  max-width: 1200px;
+  max-width: 100%;
   margin: 0 auto;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  width: 100%;
+  padding: 0 20px;
 }
 
 .header h1 {
@@ -318,6 +323,7 @@
 
   .table-wrapper {
     overflow-x: visible;
+    width: 100%;
   }
 
   .table {
