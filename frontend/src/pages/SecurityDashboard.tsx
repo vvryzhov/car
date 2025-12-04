@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import SecurityPassModal from '../components/SecurityPassModal';
@@ -27,12 +27,11 @@ const SecurityDashboard = () => {
   const [filterVehicleType, setFilterVehicleType] = useState('');
   const [editingPass, setEditingPass] = useState<Pass | null>(null);
 
-  useEffect(() => {
-    fetchPasses();
-  }, [filterDate, filterVehicleType]);
-
-  const fetchPasses = async () => {
+  const fetchPasses = useCallback(async (showLoading = true) => {
     try {
+      if (showLoading) {
+        setLoading(true);
+      }
       const params: any = {};
       if (filterDate) params.date = filterDate;
       if (filterVehicleType) params.vehicleType = filterVehicleType;
@@ -42,9 +41,27 @@ const SecurityDashboard = () => {
     } catch (error) {
       console.error('Ошибка загрузки заявок:', error);
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
-  };
+  }, [filterDate, filterVehicleType]);
+
+  useEffect(() => {
+    fetchPasses();
+  }, [fetchPasses]);
+
+  // Автоматическое обновление списка каждые 30 секунд
+  useEffect(() => {
+    // Не обновляем, если открыто модальное окно редактирования
+    if (editingPass) return;
+
+    const interval = setInterval(() => {
+      fetchPasses(false); // false - не показывать loading при автообновлении
+    }, 30000); // 30 секунд
+
+    return () => clearInterval(interval);
+  }, [fetchPasses, editingPass]);
 
   const clearFilters = () => {
     setFilterDate('');
