@@ -127,33 +127,38 @@ const Dashboard = () => {
               <tbody>
                 {passes.map((pass) => (
                   <tr key={pass.id}>
-                    <td>{pass.vehicleType}</td>
-                    <td>{pass.vehicleNumber}</td>
-                    <td>
+                    <td data-label="Тип транспорта">{pass.vehicleType}</td>
+                    <td data-label="Номер авто">{pass.vehicleNumber}</td>
+                    <td data-label="Дата въезда">
                       {format(new Date(pass.entryDate), 'dd.MM.yyyy')}
                     </td>
-                    <td>{pass.address}</td>
-                    <td>{pass.comment || '-'}</td>
-                    <td>
+                    <td data-label="Адрес">{pass.address}</td>
+                    <td data-label="Комментарий">{pass.comment || '-'}</td>
+                    <td data-label="Статус">
                       <span className={`badge badge-${pass.status}`}>
-                        {pass.status === 'pending' ? 'Ожидает' : pass.status === 'approved' ? 'Одобрено' : 'Отклонено'}
+                        {pass.status === 'pending' ? 'Ожидает' : 
+                         pass.status === 'approved' ? 'Одобрено' : 
+                         pass.status === 'activated' ? 'Активирован' : 
+                         'Отклонено'}
                       </span>
                     </td>
-                    <td>
-                      <button
-                        className="btn btn-secondary"
-                        onClick={() => handleEditPass(pass)}
-                        style={{ marginRight: '10px', padding: '5px 10px', fontSize: '14px' }}
-                      >
-                        Редактировать
-                      </button>
-                      <button
-                        className="btn btn-danger"
-                        onClick={() => handleDeletePass(pass.id)}
-                        style={{ padding: '5px 10px', fontSize: '14px' }}
-                      >
-                        Удалить
-                      </button>
+                    <td data-label="Действия">
+                      <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                        <button
+                          className="btn btn-secondary"
+                          onClick={() => handleEditPass(pass)}
+                          style={{ padding: '5px 10px', fontSize: '14px' }}
+                        >
+                          Редактировать
+                        </button>
+                        <button
+                          className="btn btn-danger"
+                          onClick={() => handleDeletePass(pass.id)}
+                          style={{ padding: '5px 10px', fontSize: '14px' }}
+                        >
+                          Удалить
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

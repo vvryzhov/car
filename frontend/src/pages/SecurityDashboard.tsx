@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
+import SecurityPassModal from '../components/SecurityPassModal';
 import { format } from 'date-fns';
 
 interface Pass {
@@ -10,6 +11,7 @@ interface Pass {
   entryDate: string;
   address: string;
   comment: string | null;
+  securityComment: string | null;
   status: string;
   createdAt: string;
   fullName: string;
@@ -23,6 +25,7 @@ const SecurityDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [filterDate, setFilterDate] = useState('');
   const [filterVehicleType, setFilterVehicleType] = useState('');
+  const [editingPass, setEditingPass] = useState<Pass | null>(null);
 
   useEffect(() => {
     fetchPasses();
@@ -46,6 +49,15 @@ const SecurityDashboard = () => {
   const clearFilters = () => {
     setFilterDate('');
     setFilterVehicleType('');
+  };
+
+  const handleEditPass = (pass: Pass) => {
+    setEditingPass(pass);
+  };
+
+  const handlePassSaved = () => {
+    setEditingPass(null);
+    fetchPasses();
   };
 
   return (
@@ -113,26 +125,41 @@ const SecurityDashboard = () => {
                   <th>Дата въезда</th>
                   <th>Адрес</th>
                   <th>Комментарий</th>
+                  <th>Комментарий охраны</th>
                   <th>Статус</th>
+                  <th>Действия</th>
                 </tr>
               </thead>
               <tbody>
                 {passes.map((pass) => (
                   <tr key={pass.id}>
-                    <td>{pass.fullName}</td>
-                    <td>{pass.plotNumber}</td>
-                    <td>{pass.phone}</td>
-                    <td>{pass.vehicleType}</td>
-                    <td>{pass.vehicleNumber}</td>
-                    <td>
+                    <td data-label="ФИО">{pass.fullName}</td>
+                    <td data-label="Участок">{pass.plotNumber}</td>
+                    <td data-label="Телефон">{pass.phone}</td>
+                    <td data-label="Тип транспорта">{pass.vehicleType}</td>
+                    <td data-label="Номер авто">{pass.vehicleNumber}</td>
+                    <td data-label="Дата въезда">
                       {format(new Date(pass.entryDate), 'dd.MM.yyyy')}
                     </td>
-                    <td>{pass.address}</td>
-                    <td>{pass.comment || '-'}</td>
-                    <td>
+                    <td data-label="Адрес">{pass.address}</td>
+                    <td data-label="Комментарий">{pass.comment || '-'}</td>
+                    <td data-label="Комментарий охраны">{pass.securityComment || '-'}</td>
+                    <td data-label="Статус">
                       <span className={`badge badge-${pass.status}`}>
-                        {pass.status === 'pending' ? 'Ожидает' : pass.status === 'approved' ? 'Одобрено' : 'Отклонено'}
+                        {pass.status === 'pending' ? 'Ожидает' : 
+                         pass.status === 'approved' ? 'Одобрено' : 
+                         pass.status === 'activated' ? 'Активирован' : 
+                         'Отклонено'}
                       </span>
+                    </td>
+                    <td data-label="Действия">
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => handleEditPass(pass)}
+                        style={{ padding: '5px 10px', fontSize: '14px' }}
+                      >
+                        Редактировать
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -141,6 +168,14 @@ const SecurityDashboard = () => {
           )}
         </div>
       </div>
+
+      {editingPass && (
+        <SecurityPassModal
+          pass={editingPass}
+          onClose={() => setEditingPass(null)}
+          onSave={handlePassSaved}
+        />
+      )}
     </div>
   );
 };

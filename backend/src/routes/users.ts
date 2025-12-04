@@ -69,7 +69,7 @@ router.post(
       const result = await dbRun(
         'INSERT INTO users (email, password, fullName, address, plotNumber, phone, role) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [email, hashedPassword, fullName, address, plotNumber, phone, role || 'user']
-      ) as any;
+      );
 
       res.status(201).json({
         id: result.lastID,

@@ -95,7 +95,7 @@ router.post(
       const result = await dbRun(
         'INSERT INTO passes (userId, vehicleType, vehicleNumber, entryDate, address, comment) VALUES (?, ?, ?, ?, ?, ?)',
         [req.user!.id, vehicleType, vehicleNumber, entryDate, address, comment || null]
-      ) as any;
+      );
 
       const pass = await dbGet('SELECT * FROM passes WHERE id = ?', [result.lastID]) as any;
       res.status(201).json(pass);
@@ -115,6 +115,7 @@ router.put(
     body('vehicleNumber').optional().notEmpty().withMessage('Номер авто не может быть пустым'),
     body('entryDate').optional().notEmpty().withMessage('Дата въезда не может быть пустой'),
     body('address').optional().notEmpty().withMessage('Адрес не может быть пустым'),
+    body('status').optional().isIn(['pending', 'approved', 'activated', 'rejected']).withMessage('Некорректный статус'),
   ],
   async (req: AuthRequest, res: Response) => {
     const errors = validationResult(req);
@@ -130,25 +131,72 @@ router.put(
       }
 
       // Проверяем, что пользователь имеет доступ к этой заявке
-      if (req.user!.role !== 'admin' && pass.userId !== req.user!.id) {
+      // Охрана и админ могут редактировать любые пропуска
+      if (req.user!.role !== 'admin' && req.user!.role !== 'security' && pass.userId !== req.user!.id) {
         return res.status(403).json({ error: 'Доступ запрещен' });
       }
 
-      const { vehicleType, vehicleNumber, entryDate, address, comment } = req.body;
+      const { 
+        vehicleType, 
+        vehicleNumber, 
+        entryDate, 
+        address, 
+        comment, 
+        securityComment,
+        status,
+        fullName,
+        plotNumber
+      } = req.body;
 
+      // Обновляем пропуск
       await dbRun(
-        'UPDATE passes SET vehicleType = ?, vehicleNumber = ?, entryDate = ?, address = ?, comment = ? WHERE id = ?',
+        'UPDATE passes SET vehicleType = ?, vehicleNumber = ?, entryDate = ?, address = ?, comment = ?, securityComment = ?, status = ? WHERE id = ?',
         [
-          vehicleType || pass.vehicleType,
-          vehicleNumber || pass.vehicleNumber,
-          entryDate || pass.entryDate,
-          address || pass.address,
+          vehicleType !== undefined ? vehicleType : pass.vehicleType,
+          vehicleNumber !== undefined ? vehicleNumber : pass.vehicleNumber,
+          entryDate !== undefined ? entryDate : pass.entryDate,
+          address !== undefined ? address : pass.address,
           comment !== undefined ? comment : pass.comment,
+          securityComment !== undefined ? securityComment : pass.securityComment,
+          status !== undefined ? status : pass.status,
           req.params.id,
         ]
       );
 
-      const updatedPass = await dbGet('SELECT * FROM passes WHERE id = ?', [req.params.id]) as any;
+      // Если охрана или админ обновляют ФИО или участок, обновляем данные пользователя
+      if ((req.user!.role === 'admin' || req.user!.role === 'security') && (fullName || plotNumber)) {
+        const user = await dbGet('SELECT * FROM users WHERE id = ?', [pass.userId]) as any;
+        if (user) {
+          const updateFields: string[] = [];
+          const updateParams: any[] = [];
+          
+          if (fullName !== undefined) {
+            updateFields.push('fullName = ?');
+            updateParams.push(fullName);
+          }
+          if (plotNumber !== undefined) {
+            updateFields.push('plotNumber = ?');
+            updateParams.push(plotNumber);
+          }
+          
+          if (updateFields.length > 0) {
+            updateParams.push(pass.userId);
+            await dbRun(
+              `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`,
+              updateParams
+            );
+          }
+        }
+      }
+
+      // Получаем обновленный пропуск с данными пользователя
+      const updatedPass = await dbGet(`
+        SELECT p.*, u.fullName, u.plotNumber, u.phone 
+        FROM passes p
+        JOIN users u ON p.userId = u.id
+        WHERE p.id = ?
+      `, [req.params.id]) as any;
+      
       res.json(updatedPass);
     } catch (error) {
       console.error('Ошибка обновления заявки:', error);

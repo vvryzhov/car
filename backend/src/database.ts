@@ -56,11 +56,22 @@ export const initDatabase = async () => {
       entryDate TEXT NOT NULL,
       address TEXT NOT NULL,
       comment TEXT,
+      securityComment TEXT,
       status TEXT DEFAULT 'pending',
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (userId) REFERENCES users(id)
     )
   `);
+
+  // Миграция: добавляем поле securityComment если его нет
+  try {
+    await dbRun('ALTER TABLE passes ADD COLUMN securityComment TEXT');
+  } catch (error: any) {
+    // Поле уже существует, игнорируем ошибку
+    if (!error.message.includes('duplicate column name')) {
+      console.error('Ошибка миграции securityComment:', error);
+    }
+  }
 
   // Создаем администратора по умолчанию (email: admin@admin.com, password: admin123)
   const adminExists = await dbGet('SELECT id FROM users WHERE email = ?', ['admin@admin.com']);
