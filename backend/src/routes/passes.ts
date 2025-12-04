@@ -1,0 +1,183 @@
+import express, { Response } from 'express';
+import { body, validationResult } from 'express-validator';
+import { dbGet, dbRun, dbAll } from '../database';
+import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
+
+const router = express.Router();
+
+// Получить все заявки (для охраны и админа)
+router.get('/all', authenticate, requireRole(['security', 'admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { date, vehicleType } = req.query;
+    let query = `
+      SELECT p.*, u.fullName, u.plotNumber, u.phone 
+      FROM passes p
+      JOIN users u ON p.userId = u.id
+      WHERE 1=1
+    `;
+    const params: any[] = [];
+
+    if (date) {
+      query += ' AND p.entryDate = ?';
+      params.push(date);
+    }
+
+    if (vehicleType) {
+      query += ' AND p.vehicleType = ?';
+      params.push(vehicleType);
+    }
+
+    query += ' ORDER BY p.entryDate DESC, p.createdAt DESC';
+
+    const passes = await dbAll(query, params) as any[];
+    res.json(passes);
+  } catch (error) {
+    console.error('Ошибка получения заявок:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Получить заявки текущего пользователя
+router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const passes = await dbAll(
+      'SELECT * FROM passes WHERE userId = ? ORDER BY entryDate DESC, createdAt DESC',
+      [req.user!.id]
+    ) as any[];
+    res.json(passes);
+  } catch (error) {
+    console.error('Ошибка получения заявок:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Получить одну заявку
+router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const pass = await dbGet('SELECT * FROM passes WHERE id = ?', [req.params.id]) as any;
+
+    if (!pass) {
+      return res.status(404).json({ error: 'Заявка не найдена' });
+    }
+
+    // Проверяем, что пользователь имеет доступ к этой заявке
+    if (req.user!.role !== 'admin' && req.user!.role !== 'security' && pass.userId !== req.user!.id) {
+      return res.status(403).json({ error: 'Доступ запрещен' });
+    }
+
+    res.json(pass);
+  } catch (error) {
+    console.error('Ошибка получения заявки:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Создать заявку
+router.post(
+  '/',
+  authenticate,
+  requireRole(['user', 'admin']),
+  [
+    body('vehicleType').isIn(['грузовой', 'легковой']).withMessage('Тип транспорта должен быть грузовой или легковой'),
+    body('vehicleNumber').notEmpty().withMessage('Номер авто обязателен'),
+    body('entryDate').notEmpty().withMessage('Дата въезда обязательна'),
+    body('address').notEmpty().withMessage('Адрес обязателен'),
+  ],
+  async (req: AuthRequest, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { vehicleType, vehicleNumber, entryDate, address, comment } = req.body;
+
+    try {
+      const result = await dbRun(
+        'INSERT INTO passes (userId, vehicleType, vehicleNumber, entryDate, address, comment) VALUES (?, ?, ?, ?, ?, ?)',
+        [req.user!.id, vehicleType, vehicleNumber, entryDate, address, comment || null]
+      ) as any;
+
+      const pass = await dbGet('SELECT * FROM passes WHERE id = ?', [result.lastID]) as any;
+      res.status(201).json(pass);
+    } catch (error) {
+      console.error('Ошибка создания заявки:', error);
+      res.status(500).json({ error: 'Ошибка сервера' });
+    }
+  }
+);
+
+// Обновить заявку
+router.put(
+  '/:id',
+  authenticate,
+  [
+    body('vehicleType').optional().isIn(['грузовой', 'легковой']).withMessage('Тип транспорта должен быть грузовой или легковой'),
+    body('vehicleNumber').optional().notEmpty().withMessage('Номер авто не может быть пустым'),
+    body('entryDate').optional().notEmpty().withMessage('Дата въезда не может быть пустой'),
+    body('address').optional().notEmpty().withMessage('Адрес не может быть пустым'),
+  ],
+  async (req: AuthRequest, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const pass = await dbGet('SELECT * FROM passes WHERE id = ?', [req.params.id]) as any;
+
+      if (!pass) {
+        return res.status(404).json({ error: 'Заявка не найдена' });
+      }
+
+      // Проверяем, что пользователь имеет доступ к этой заявке
+      if (req.user!.role !== 'admin' && pass.userId !== req.user!.id) {
+        return res.status(403).json({ error: 'Доступ запрещен' });
+      }
+
+      const { vehicleType, vehicleNumber, entryDate, address, comment } = req.body;
+
+      await dbRun(
+        'UPDATE passes SET vehicleType = ?, vehicleNumber = ?, entryDate = ?, address = ?, comment = ? WHERE id = ?',
+        [
+          vehicleType || pass.vehicleType,
+          vehicleNumber || pass.vehicleNumber,
+          entryDate || pass.entryDate,
+          address || pass.address,
+          comment !== undefined ? comment : pass.comment,
+          req.params.id,
+        ]
+      );
+
+      const updatedPass = await dbGet('SELECT * FROM passes WHERE id = ?', [req.params.id]) as any;
+      res.json(updatedPass);
+    } catch (error) {
+      console.error('Ошибка обновления заявки:', error);
+      res.status(500).json({ error: 'Ошибка сервера' });
+    }
+  }
+);
+
+// Удалить заявку
+router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const pass = await dbGet('SELECT * FROM passes WHERE id = ?', [req.params.id]) as any;
+
+    if (!pass) {
+      return res.status(404).json({ error: 'Заявка не найдена' });
+    }
+
+    // Проверяем, что пользователь имеет доступ к этой заявке
+    if (req.user!.role !== 'admin' && pass.userId !== req.user!.id) {
+      return res.status(403).json({ error: 'Доступ запрещен' });
+    }
+
+    await dbRun('DELETE FROM passes WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Заявка удалена' });
+  } catch (error) {
+    console.error('Ошибка удаления заявки:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+export default router;
+

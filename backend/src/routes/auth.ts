@@ -1,0 +1,63 @@
+import express, { Request, Response } from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { body, validationResult } from 'express-validator';
+import { dbGet, dbRun } from '../database';
+import { JWT_SECRET } from '../middleware/auth';
+
+const router = express.Router();
+
+router.post(
+  '/login',
+  [
+    body('email').isEmail().withMessage('Некорректный email'),
+    body('password').notEmpty().withMessage('Пароль обязателен'),
+  ],
+  async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email, password } = req.body;
+
+    try {
+      const user = await dbGet('SELECT * FROM users WHERE email = ?', [email]) as any;
+
+      if (!user) {
+        return res.status(401).json({ error: 'Неверный email или пароль' });
+      }
+
+      const isValidPassword = await bcrypt.compare(password, user.password);
+
+      if (!isValidPassword) {
+        return res.status(401).json({ error: 'Неверный email или пароль' });
+      }
+
+      const token = jwt.sign(
+        { id: user.id, email: user.email, role: user.role },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      res.json({
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          address: user.address,
+          plotNumber: user.plotNumber,
+          phone: user.phone,
+          role: user.role,
+        },
+      });
+    } catch (error) {
+      console.error('Ошибка входа:', error);
+      res.status(500).json({ error: 'Ошибка сервера' });
+    }
+  }
+);
+
+export default router;
+
