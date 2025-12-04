@@ -1,90 +1,130 @@
-import sqlite3 from 'sqlite3';
+import { Pool, QueryResult } from 'pg';
 import bcrypt from 'bcryptjs';
 
-const db = new sqlite3.Database('./passes.db');
+// Создаем пул подключений к PostgreSQL
+const pool = new Pool({
+  host: process.env.DB_HOST || 'postgres',
+  port: parseInt(process.env.DB_PORT || '5432'),
+  database: process.env.DB_NAME || 'passes_db',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+});
 
-export const dbRun = (sql: string, params?: any[]): Promise<{ lastID?: number; changes?: number }> => {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params || [], function(err) {
-      if (err) reject(err);
-      else resolve({ lastID: this.lastID, changes: this.changes });
-    });
-  });
+// Обработка ошибок подключения
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
+  process.exit(-1);
+});
+
+export const dbRun = async (sql: string, params?: any[]): Promise<{ lastID?: number; changes?: number; rows?: any[] }> => {
+  try {
+    const result: QueryResult = await pool.query(sql, params);
+    return {
+      lastID: result.rows[0]?.id,
+      changes: result.rowCount || 0,
+      rows: result.rows,
+    };
+  } catch (error) {
+    console.error('Database query error:', error);
+    throw error;
+  }
 };
 
-export const dbGet = (sql: string, params?: any[]): Promise<any> => {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params || [], (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
+export const dbGet = async (sql: string, params?: any[]): Promise<any> => {
+  try {
+    const result: QueryResult = await pool.query(sql, params);
+    return result.rows[0] || null;
+  } catch (error) {
+    console.error('Database query error:', error);
+    throw error;
+  }
 };
 
-export const dbAll = (sql: string, params?: any[]): Promise<any[]> => {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params || [], (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows || []);
-    });
-  });
+export const dbAll = async (sql: string, params?: any[]): Promise<any[]> => {
+  try {
+    const result: QueryResult = await pool.query(sql, params);
+    return result.rows || [];
+  } catch (error) {
+    console.error('Database query error:', error);
+    throw error;
+  }
 };
 
 export const initDatabase = async () => {
-  // Таблица пользователей
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL,
-      fullName TEXT NOT NULL,
-      address TEXT NOT NULL,
-      plotNumber TEXT NOT NULL,
-      phone TEXT NOT NULL,
-      role TEXT NOT NULL DEFAULT 'user',
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  // Таблица заявок на пропуск
-  await dbRun(`
-    CREATE TABLE IF NOT EXISTS passes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      userId INTEGER NOT NULL,
-      vehicleType TEXT NOT NULL,
-      vehicleNumber TEXT NOT NULL,
-      entryDate TEXT NOT NULL,
-      address TEXT NOT NULL,
-      comment TEXT,
-      securityComment TEXT,
-      status TEXT DEFAULT 'pending',
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (userId) REFERENCES users(id)
-    )
-  `);
-
-  // Миграция: добавляем поле securityComment если его нет
   try {
-    await dbRun('ALTER TABLE passes ADD COLUMN securityComment TEXT');
-  } catch (error: any) {
-    // Поле уже существует, игнорируем ошибку
-    if (!error.message.includes('duplicate column name')) {
-      console.error('Ошибка миграции securityComment:', error);
+    // Таблица пользователей
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        "fullName" VARCHAR(255) NOT NULL,
+        address VARCHAR(255) NOT NULL,
+        "plotNumber" VARCHAR(50) NOT NULL,
+        phone VARCHAR(50) NOT NULL,
+        role VARCHAR(50) NOT NULL DEFAULT 'user',
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Таблица заявок на пропуск
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS passes (
+        id SERIAL PRIMARY KEY,
+        "userId" INTEGER NOT NULL,
+        "vehicleType" VARCHAR(50) NOT NULL,
+        "vehicleNumber" VARCHAR(50) NOT NULL,
+        "entryDate" DATE NOT NULL,
+        address VARCHAR(255) NOT NULL,
+        comment TEXT,
+        "securityComment" TEXT,
+        status VARCHAR(50) DEFAULT 'pending',
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
+    // Проверяем наличие поля securityComment и добавляем если его нет
+    const columnCheck = await dbGet(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name='passes' AND column_name='securityComment'
+    `);
+    
+    if (!columnCheck) {
+      await dbRun('ALTER TABLE passes ADD COLUMN "securityComment" TEXT');
     }
-  }
 
-  // Создаем администратора по умолчанию (email: admin@admin.com, password: admin123)
-  const adminExists = await dbGet('SELECT id FROM users WHERE email = ?', ['admin@admin.com']);
-  if (!adminExists) {
-    const hashedPassword = await bcrypt.hash('admin123', 10);
-    await dbRun(
-      'INSERT INTO users (email, password, fullName, address, plotNumber, phone, role) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      ['admin@admin.com', hashedPassword, 'Администратор', 'Административный корпус', '0', '+7 (999) 000-00-00', 'admin']
-    );
-  }
+    // Создаем администратора по умолчанию (email: admin@admin.com, password: admin123)
+    const adminExists = await dbGet('SELECT id FROM users WHERE email = $1', ['admin@admin.com']);
+    if (!adminExists) {
+      const hashedPassword = await bcrypt.hash('admin123', 10);
+      const result = await dbRun(
+        'INSERT INTO users (email, password, "fullName", address, "plotNumber", phone, role) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
+        ['admin@admin.com', hashedPassword, 'Администратор', 'Административный корпус', '0', '+7 (999) 000-00-00', 'admin']
+      );
+      console.log('Администратор создан с ID:', result.rows?.[0]?.id);
+    }
 
-  console.log('База данных инициализирована');
+    console.log('База данных PostgreSQL инициализирована');
+  } catch (error) {
+    console.error('Ошибка инициализации базы данных:', error);
+    throw error;
+  }
 };
 
-export default db;
+// Закрытие пула при завершении приложения
+process.on('SIGINT', async () => {
+  await pool.end();
+  process.exit(0);
+});
 
+process.on('SIGTERM', async () => {
+  await pool.end();
+  process.exit(0);
+});
+
+export default pool;

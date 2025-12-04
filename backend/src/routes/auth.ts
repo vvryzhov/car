@@ -22,7 +22,7 @@ router.post(
     const { email, password } = req.body;
 
     try {
-      const user = await dbGet('SELECT * FROM users WHERE email = ?', [email]) as any;
+      const user = await dbGet('SELECT * FROM users WHERE email = $1', [email]) as any;
 
       if (!user) {
         return res.status(401).json({ error: 'Неверный email или пароль' });

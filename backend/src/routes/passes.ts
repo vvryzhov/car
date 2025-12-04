@@ -10,24 +10,27 @@ router.get('/all', authenticate, requireRole(['security', 'admin']), async (req:
   try {
     const { date, vehicleType } = req.query;
     let query = `
-      SELECT p.*, u.fullName, u.plotNumber, u.phone 
+      SELECT p.*, u."fullName", u."plotNumber", u.phone 
       FROM passes p
-      JOIN users u ON p.userId = u.id
+      JOIN users u ON p."userId" = u.id
       WHERE 1=1
     `;
     const params: any[] = [];
+    let paramIndex = 1;
 
     if (date) {
-      query += ' AND p.entryDate = ?';
+      query += ` AND p."entryDate" = $${paramIndex}`;
       params.push(date);
+      paramIndex++;
     }
 
     if (vehicleType) {
-      query += ' AND p.vehicleType = ?';
+      query += ` AND p."vehicleType" = $${paramIndex}`;
       params.push(vehicleType);
+      paramIndex++;
     }
 
-    query += ' ORDER BY p.entryDate DESC, p.createdAt DESC';
+    query += ' ORDER BY p."entryDate" DESC, p."createdAt" DESC';
 
     const passes = await dbAll(query, params) as any[];
     res.json(passes);
@@ -41,7 +44,7 @@ router.get('/all', authenticate, requireRole(['security', 'admin']), async (req:
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const passes = await dbAll(
-      'SELECT * FROM passes WHERE userId = ? ORDER BY entryDate DESC, createdAt DESC',
+      'SELECT * FROM passes WHERE "userId" = $1 ORDER BY "entryDate" DESC, "createdAt" DESC',
       [req.user!.id]
     ) as any[];
     res.json(passes);
@@ -54,7 +57,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
 // Получить одну заявку
 router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const pass = await dbGet('SELECT * FROM passes WHERE id = ?', [req.params.id]) as any;
+    const pass = await dbGet('SELECT * FROM passes WHERE id = $1', [req.params.id]) as any;
 
     if (!pass) {
       return res.status(404).json({ error: 'Заявка не найдена' });
@@ -93,11 +96,11 @@ router.post(
 
     try {
       const result = await dbRun(
-        'INSERT INTO passes (userId, vehicleType, vehicleNumber, entryDate, address, comment) VALUES (?, ?, ?, ?, ?, ?)',
+        'INSERT INTO passes ("userId", "vehicleType", "vehicleNumber", "entryDate", address, comment) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
         [req.user!.id, vehicleType, vehicleNumber, entryDate, address, comment || null]
       );
 
-      const pass = await dbGet('SELECT * FROM passes WHERE id = ?', [result.lastID]) as any;
+      const pass = await dbGet('SELECT * FROM passes WHERE id = $1', [result.rows?.[0]?.id]) as any;
       res.status(201).json(pass);
     } catch (error) {
       console.error('Ошибка создания заявки:', error);
@@ -124,7 +127,7 @@ router.put(
     }
 
     try {
-      const pass = await dbGet('SELECT * FROM passes WHERE id = ?', [req.params.id]) as any;
+      const pass = await dbGet('SELECT * FROM passes WHERE id = $1', [req.params.id]) as any;
 
       if (!pass) {
         return res.status(404).json({ error: 'Заявка не найдена' });
@@ -150,7 +153,7 @@ router.put(
 
       // Обновляем пропуск
       await dbRun(
-        'UPDATE passes SET vehicleType = ?, vehicleNumber = ?, entryDate = ?, address = ?, comment = ?, securityComment = ?, status = ? WHERE id = ?',
+        'UPDATE passes SET "vehicleType" = $1, "vehicleNumber" = $2, "entryDate" = $3, address = $4, comment = $5, "securityComment" = $6, status = $7 WHERE id = $8',
         [
           vehicleType !== undefined ? vehicleType : pass.vehicleType,
           vehicleNumber !== undefined ? vehicleNumber : pass.vehicleNumber,
@@ -165,36 +168,37 @@ router.put(
 
       // Если охрана или админ обновляют ФИО или участок, обновляем данные пользователя
       if ((req.user!.role === 'admin' || req.user!.role === 'security') && (fullName || plotNumber)) {
-        const user = await dbGet('SELECT * FROM users WHERE id = ?', [pass.userId]) as any;
+        const user = await dbGet('SELECT * FROM users WHERE id = $1', [pass.userId]) as any;
         if (user) {
           const updateFields: string[] = [];
           const updateParams: any[] = [];
+          let paramIndex = 1;
           
           if (fullName !== undefined) {
-            updateFields.push('fullName = ?');
+            updateFields.push(`"fullName" = $${paramIndex}`);
             updateParams.push(fullName);
+            paramIndex++;
           }
           if (plotNumber !== undefined) {
-            updateFields.push('plotNumber = ?');
+            updateFields.push(`"plotNumber" = $${paramIndex}`);
             updateParams.push(plotNumber);
+            paramIndex++;
           }
           
           if (updateFields.length > 0) {
             updateParams.push(pass.userId);
-            await dbRun(
-              `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`,
-              updateParams
-            );
+            const updateQuery = `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${paramIndex}`;
+            await dbRun(updateQuery, updateParams);
           }
         }
       }
 
       // Получаем обновленный пропуск с данными пользователя
       const updatedPass = await dbGet(`
-        SELECT p.*, u.fullName, u.plotNumber, u.phone 
+        SELECT p.*, u."fullName", u."plotNumber", u.phone 
         FROM passes p
-        JOIN users u ON p.userId = u.id
-        WHERE p.id = ?
+        JOIN users u ON p."userId" = u.id
+        WHERE p.id = $1
       `, [req.params.id]) as any;
       
       res.json(updatedPass);
@@ -208,7 +212,7 @@ router.put(
 // Удалить заявку
 router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const pass = await dbGet('SELECT * FROM passes WHERE id = ?', [req.params.id]) as any;
+    const pass = await dbGet('SELECT * FROM passes WHERE id = $1', [req.params.id]) as any;
 
     if (!pass) {
       return res.status(404).json({ error: 'Заявка не найдена' });
@@ -219,7 +223,7 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'Доступ запрещен' });
     }
 
-    await dbRun('DELETE FROM passes WHERE id = ?', [req.params.id]);
+    await dbRun('DELETE FROM passes WHERE id = $1', [req.params.id]);
     res.json({ message: 'Заявка удалена' });
   } catch (error) {
     console.error('Ошибка удаления заявки:', error);
@@ -228,4 +232,3 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 });
 
 export default router;
-

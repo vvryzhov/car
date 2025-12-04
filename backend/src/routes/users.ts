@@ -9,7 +9,7 @@ const router = express.Router();
 // Получить всех пользователей (только для админа)
 router.get('/', authenticate, requireRole(['admin']), async (req: AuthRequest, res: Response) => {
   try {
-    const users = await dbAll('SELECT id, email, fullName, address, plotNumber, phone, role, createdAt FROM users') as any[];
+    const users = await dbAll('SELECT id, email, "fullName", address, "plotNumber", phone, role, "createdAt" FROM users') as any[];
     res.json(users);
   } catch (error) {
     console.error('Ошибка получения пользователей:', error);
@@ -21,7 +21,7 @@ router.get('/', authenticate, requireRole(['admin']), async (req: AuthRequest, r
 router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const user = await dbGet(
-      'SELECT id, email, fullName, address, plotNumber, phone, role FROM users WHERE id = ?',
+      'SELECT id, email, "fullName", address, "plotNumber", phone, role FROM users WHERE id = $1',
       [req.user!.id]
     ) as any;
 
@@ -59,7 +59,7 @@ router.post(
     const { email, password, fullName, address, plotNumber, phone, role } = req.body;
 
     try {
-      const existingUser = await dbGet('SELECT id FROM users WHERE email = ?', [email]);
+      const existingUser = await dbGet('SELECT id FROM users WHERE email = $1', [email]);
       if (existingUser) {
         return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
       }
@@ -67,12 +67,12 @@ router.post(
       const hashedPassword = await bcrypt.hash(password, 10);
 
       const result = await dbRun(
-        'INSERT INTO users (email, password, fullName, address, plotNumber, phone, role) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO users (email, password, "fullName", address, "plotNumber", phone, role) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
         [email, hashedPassword, fullName, address, plotNumber, phone, role || 'user']
       );
 
       res.status(201).json({
-        id: result.lastID,
+        id: result.rows?.[0]?.id,
         email,
         fullName,
         address,
@@ -107,12 +107,12 @@ router.put(
 
     try {
       await dbRun(
-        'UPDATE users SET fullName = ?, address = ?, plotNumber = ?, phone = ? WHERE id = ?',
+        'UPDATE users SET "fullName" = $1, address = $2, "plotNumber" = $3, phone = $4 WHERE id = $5',
         [fullName, address, plotNumber, phone, req.user!.id]
       );
 
       const user = await dbGet(
-        'SELECT id, email, fullName, address, plotNumber, phone, role FROM users WHERE id = ?',
+        'SELECT id, email, "fullName", address, "plotNumber", phone, role FROM users WHERE id = $1',
         [req.user!.id]
       ) as any;
 
@@ -125,4 +125,3 @@ router.put(
 );
 
 export default router;
-
