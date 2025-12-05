@@ -8,7 +8,7 @@ const router = express.Router();
 // Получить все заявки (для охраны и админа)
 router.get('/all', authenticate, requireRole(['security', 'admin']), async (req: AuthRequest, res: Response) => {
   try {
-    const { date, vehicleType } = req.query;
+    const { date, vehicleType, includeDeleted } = req.query;
     let query = `
       SELECT p.*, u."fullName", u."plotNumber", u.phone 
       FROM passes p
@@ -17,6 +17,10 @@ router.get('/all', authenticate, requireRole(['security', 'admin']), async (req:
     `;
     const params: any[] = [];
     let paramIndex = 1;
+
+    if (includeDeleted !== 'true') {
+      query += ` AND p."deletedAt" IS NULL`;
+    }
 
     if (date) {
       query += ` AND p."entryDate" = $${paramIndex}`;
@@ -44,7 +48,7 @@ router.get('/all', authenticate, requireRole(['security', 'admin']), async (req:
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const passes = await dbAll(
-      'SELECT * FROM passes WHERE "userId" = $1 ORDER BY "entryDate" DESC, "createdAt" DESC',
+      'SELECT * FROM passes WHERE "userId" = $1 AND "deletedAt" IS NULL ORDER BY "entryDate" DESC, "createdAt" DESC',
       [req.user!.id]
     ) as any[];
     res.json(passes);
@@ -68,6 +72,11 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'Доступ запрещен' });
     }
 
+    // Для обычных пользователей не показываем удаленные заявки
+    if (req.user!.role !== 'admin' && req.user!.role !== 'security' && pass.deletedAt) {
+      return res.status(404).json({ error: 'Заявка не найдена' });
+    }
+
     res.json(pass);
   } catch (error) {
     console.error('Ошибка получения заявки:', error);
@@ -79,7 +88,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 router.post(
   '/',
   authenticate,
-  requireRole(['user', 'admin']),
+  requireRole(['user', 'admin', 'foreman']),
   [
     body('vehicleType').isIn(['грузовой', 'легковой']).withMessage('Тип транспорта должен быть грузовой или легковой'),
     body('vehicleNumber').notEmpty().withMessage('Номер авто обязателен'),
@@ -226,7 +235,8 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'Доступ запрещен' });
     }
 
-    await dbRun('DELETE FROM passes WHERE id = $1', [req.params.id]);
+    // Мягкое удаление - устанавливаем deletedAt
+    await dbRun('UPDATE passes SET "deletedAt" = CURRENT_TIMESTAMP WHERE id = $1', [req.params.id]);
     res.json({ message: 'Заявка удалена' });
   } catch (error) {
     console.error('Ошибка удаления заявки:', error);

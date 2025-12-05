@@ -9,6 +9,8 @@ interface User {
   plotNumber: string;
   phone: string;
   role: string;
+  deactivatedAt?: string | null;
+  deactivationDate?: string | null;
 }
 
 interface UserModalProps {
@@ -25,6 +27,8 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
   const [plotNumber, setPlotNumber] = useState('');
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState('user');
+  const [deactivationDate, setDeactivationDate] = useState('');
+  const [deactivate, setDeactivate] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -36,6 +40,8 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
       setPlotNumber(user.plotNumber);
       setPhone(user.phone);
       setRole(user.role);
+      setDeactivationDate(user.deactivationDate || '');
+      setDeactivate(!!user.deactivatedAt);
     }
   }, [user]);
 
@@ -62,6 +68,9 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
           phone,
           role,
         };
+        if (role === 'foreman' && deactivationDate) {
+          data.deactivationDate = deactivationDate;
+        }
         await api.post('/users', data);
       } else {
         // Редактирование существующего пользователя
@@ -73,6 +82,10 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
           phone,
           role,
         };
+        if (role === 'foreman' || user.role === 'foreman') {
+          data.deactivationDate = deactivationDate || null;
+        }
+        data.deactivate = deactivate;
         await api.put(`/users/${user.id}`, data);
       }
 
@@ -171,10 +184,42 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
               required
             >
               <option value="user">Пользователь</option>
+              <option value="foreman">Прораб</option>
               <option value="security">Охрана</option>
               <option value="admin">Администратор</option>
             </select>
           </div>
+
+          {(role === 'foreman' || (user && user.role === 'foreman')) && (
+            <div className="form-group">
+              <label htmlFor="deactivationDate">Дата деактивации аккаунта</label>
+              <input
+                type="date"
+                id="deactivationDate"
+                value={deactivationDate}
+                onChange={(e) => setDeactivationDate(e.target.value)}
+                placeholder="Выберите дату деактивации"
+              />
+              <small style={{ color: '#666', fontSize: '12px' }}>Оставьте пустым, если деактивация не требуется</small>
+            </div>
+          )}
+
+          {user && (
+            <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={deactivate}
+                  onChange={(e) => setDeactivate(e.target.checked)}
+                  style={{ marginRight: '8px' }}
+                />
+                Деактивировать аккаунт
+              </label>
+              <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '5px' }}>
+                Деактивированный пользователь не сможет войти в систему
+              </small>
+            </div>
+          )}
 
           {error && <div className="error">{error}</div>}
 

@@ -38,6 +38,14 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
         setError('Пароль должен быть не менее 6 символов');
         return;
       }
+
+      // Проверка: пароль должен содержать буквы и числа
+      const hasLetter = /[a-zA-Zа-яА-Я]/.test(newPassword);
+      const hasNumber = /[0-9]/.test(newPassword);
+      if (!hasLetter || !hasNumber) {
+        setError('Пароль должен содержать буквы и числа');
+        return;
+      }
     }
 
     setLoading(true);

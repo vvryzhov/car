@@ -66,9 +66,30 @@ export const initDatabase = async () => {
         "plotNumber" VARCHAR(50) NOT NULL,
         phone VARCHAR(50) NOT NULL,
         role VARCHAR(50) NOT NULL DEFAULT 'user',
+        "deactivatedAt" TIMESTAMP,
+        "deactivationDate" DATE,
         "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Добавляем поля деактивации, если их нет
+    const deactivatedAtCheck = await dbGet(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name='users' AND column_name='deactivatedAt'
+    `);
+    if (!deactivatedAtCheck) {
+      await dbRun('ALTER TABLE users ADD COLUMN "deactivatedAt" TIMESTAMP');
+    }
+
+    const deactivationDateCheck = await dbGet(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name='users' AND column_name='deactivationDate'
+    `);
+    if (!deactivationDateCheck) {
+      await dbRun('ALTER TABLE users ADD COLUMN "deactivationDate" DATE');
+    }
 
     // Таблица заявок на пропуск
     await dbRun(`
@@ -82,10 +103,21 @@ export const initDatabase = async () => {
         comment TEXT,
         "securityComment" TEXT,
         status VARCHAR(50) DEFAULT 'pending',
+        "deletedAt" TIMESTAMP,
         "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE
       )
     `);
+
+    // Добавляем поле deletedAt, если его нет
+    const deletedAtCheck = await dbGet(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name='passes' AND column_name='deletedAt'
+    `);
+    if (!deletedAtCheck) {
+      await dbRun('ALTER TABLE passes ADD COLUMN "deletedAt" TIMESTAMP');
+    }
 
     // Проверяем наличие поля securityComment и добавляем если его нет
     const columnCheck = await dbGet(`

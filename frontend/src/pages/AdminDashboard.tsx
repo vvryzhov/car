@@ -14,6 +14,8 @@ interface User {
   plotNumber: string;
   phone: string;
   role: string;
+  deactivatedAt?: string | null;
+  deactivationDate?: string | null;
   createdAt: string;
 }
 
@@ -26,6 +28,12 @@ const AdminDashboard = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordUserId, setPasswordUserId] = useState<number | null>(null);
+  const [filters, setFilters] = useState({
+    email: '',
+    phone: '',
+    fullName: '',
+    plotNumber: '',
+  });
 
   useEffect(() => {
     fetchUsers();
@@ -33,13 +41,37 @@ const AdminDashboard = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await api.get('/users');
+      const params = new URLSearchParams();
+      if (filters.email) params.append('email', filters.email);
+      if (filters.phone) params.append('phone', filters.phone);
+      if (filters.fullName) params.append('fullName', filters.fullName);
+      if (filters.plotNumber) params.append('plotNumber', filters.plotNumber);
+
+      const response = await api.get(`/users?${params.toString()}`);
       setUsers(response.data);
     } catch (error) {
       console.error('Ошибка загрузки пользователей:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFilterChange = (field: string, value: string) => {
+    setFilters({ ...filters, [field]: value });
+  };
+
+  const handleFilterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    fetchUsers();
+  };
+
+  const handleClearFilters = () => {
+    setFilters({ email: '', phone: '', fullName: '', plotNumber: '' });
+    setLoading(true);
+    setTimeout(() => {
+      fetchUsers();
+    }, 100);
   };
 
   const handleCreateUser = () => {
@@ -83,6 +115,59 @@ const AdminDashboard = () => {
             </button>
           </div>
 
+          <form onSubmit={handleFilterSubmit} style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginBottom: '10px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Email</label>
+                <input
+                  type="text"
+                  value={filters.email}
+                  onChange={(e) => handleFilterChange('email', e.target.value)}
+                  placeholder="Поиск по email"
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Телефон</label>
+                <input
+                  type="text"
+                  value={filters.phone}
+                  onChange={(e) => handleFilterChange('phone', e.target.value)}
+                  placeholder="Поиск по телефону"
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>ФИО</label>
+                <input
+                  type="text"
+                  value={filters.fullName}
+                  onChange={(e) => handleFilterChange('fullName', e.target.value)}
+                  placeholder="Поиск по ФИО"
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Участок</label>
+                <input
+                  type="text"
+                  value={filters.plotNumber}
+                  onChange={(e) => handleFilterChange('plotNumber', e.target.value)}
+                  placeholder="Поиск по участку"
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="submit" className="btn btn-primary" style={{ padding: '8px 16px' }}>
+                Применить фильтры
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={handleClearFilters} style={{ padding: '8px 16px' }}>
+                Очистить
+              </button>
+            </div>
+          </form>
+
           {loading ? (
             <div className="loading">Загрузка...</div>
           ) : users.length === 0 ? (
@@ -113,9 +198,12 @@ const AdminDashboard = () => {
                       <td data-label="Участок">{u.plotNumber}</td>
                       <td data-label="Телефон">{u.phone}</td>
                       <td data-label="Роль">
-                        <span className={`badge ${u.role === 'admin' ? 'badge-approved' : u.role === 'security' ? 'badge-pending' : ''}`}>
-                          {u.role === 'admin' ? 'Администратор' : u.role === 'security' ? 'Охрана' : 'Пользователь'}
+                        <span className={`badge ${u.role === 'admin' ? 'badge-approved' : u.role === 'security' ? 'badge-pending' : u.role === 'foreman' ? 'badge-activated' : ''}`}>
+                          {u.role === 'admin' ? 'Администратор' : u.role === 'security' ? 'Охрана' : u.role === 'foreman' ? 'Прораб' : 'Пользователь'}
                         </span>
+                        {(u.deactivatedAt || (u.deactivationDate && new Date(u.deactivationDate) <= new Date())) && (
+                          <span className="badge" style={{ backgroundColor: '#dc3545', marginLeft: '5px' }}>Деактивирован</span>
+                        )}
                       </td>
                       <td data-label="Дата создания">{new Date(u.createdAt).toLocaleDateString('ru-RU')}</td>
                       <td data-label="Действия">

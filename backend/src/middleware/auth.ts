@@ -15,7 +15,7 @@ export interface AuthRequest extends Request {
   headers: any;
 }
 
-export const authenticate = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const authenticate = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const token = req.headers.authorization?.split(' ')[1];
 
   if (!token) {
@@ -24,6 +24,30 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as { id: number; email: string; role: string };
+    
+    // Проверяем, не деактивирован ли пользователь
+    const { dbGet } = require('../database');
+    const user = await dbGet('SELECT "deactivatedAt", "deactivationDate" FROM users WHERE id = $1', [decoded.id]) as any;
+    
+    if (user) {
+      // Проверяем немедленную деактивацию
+      if (user.deactivatedAt) {
+        return res.status(403).json({ error: 'Аккаунт деактивирован' });
+      }
+      
+      // Проверяем дату деактивации
+      if (user.deactivationDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const deactivationDate = new Date(user.deactivationDate);
+        deactivationDate.setHours(0, 0, 0, 0);
+        
+        if (today >= deactivationDate) {
+          return res.status(403).json({ error: 'Аккаунт деактивирован' });
+        }
+      }
+    }
+    
     req.user = decoded;
     next();
   } catch (error) {

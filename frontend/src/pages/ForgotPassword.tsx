@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
-import Footer from '../components/Footer';
 import './Login.css';
 
 const ForgotPassword = () => {
@@ -96,9 +95,11 @@ const RequestPasswordReset = () => {
               Вернуться к входу
             </button>
           </div>
+          <div style={{ marginTop: '20px', textAlign: 'center', paddingTop: '20px', borderTop: '1px solid #e0e0e0' }}>
+            <p style={{ margin: 0, fontSize: '12px', color: '#666' }}>Powered by jirajedi</p>
+          </div>
         </form>
       </div>
-      <Footer />
     </div>
   );
 };
@@ -122,6 +123,14 @@ const ResetPasswordForm = ({ token }: { token: string }) => {
 
     if (newPassword.length < 6) {
       setError('Пароль должен быть не менее 6 символов');
+      return;
+    }
+
+    // Проверка: пароль должен содержать буквы и числа
+    const hasLetter = /[a-zA-Zа-яА-Я]/.test(newPassword);
+    const hasNumber = /[0-9]/.test(newPassword);
+    if (!hasLetter || !hasNumber) {
+      setError('Пароль должен содержать буквы и числа');
       return;
     }
 
@@ -201,9 +210,11 @@ const ResetPasswordForm = ({ token }: { token: string }) => {
               Вернуться к входу
             </button>
           </div>
+          <div style={{ marginTop: '20px', textAlign: 'center', paddingTop: '20px', borderTop: '1px solid #e0e0e0' }}>
+            <p style={{ margin: 0, fontSize: '12px', color: '#666' }}>Powered by jirajedi</p>
+          </div>
         </form>
       </div>
-      <Footer />
     </div>
   );
 };

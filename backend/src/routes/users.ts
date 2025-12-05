@@ -4,13 +4,45 @@ import { body, validationResult } from 'express-validator';
 import { dbGet, dbRun, dbAll } from '../database';
 import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
 import { sendPasswordResetEmail } from '../services/email';
+import { validatePassword } from '../utils/passwordValidator';
 
 const router = express.Router();
 
 // Получить всех пользователей (только для админа)
 router.get('/', authenticate, requireRole(['admin']), async (req: AuthRequest, res: Response) => {
   try {
-    const users = await dbAll('SELECT id, email, "fullName", address, "plotNumber", phone, role, "createdAt" FROM users') as any[];
+    const { email, phone, fullName, plotNumber } = req.query;
+    let query = 'SELECT id, email, "fullName", address, "plotNumber", phone, role, "deactivatedAt", "deactivationDate", "createdAt" FROM users WHERE 1=1';
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (email) {
+      query += ` AND email ILIKE $${paramIndex}`;
+      params.push(`%${email}%`);
+      paramIndex++;
+    }
+
+    if (phone) {
+      query += ` AND phone ILIKE $${paramIndex}`;
+      params.push(`%${phone}%`);
+      paramIndex++;
+    }
+
+    if (fullName) {
+      query += ` AND "fullName" ILIKE $${paramIndex}`;
+      params.push(`%${fullName}%`);
+      paramIndex++;
+    }
+
+    if (plotNumber) {
+      query += ` AND "plotNumber" ILIKE $${paramIndex}`;
+      params.push(`%${plotNumber}%`);
+      paramIndex++;
+    }
+
+    query += ' ORDER BY "createdAt" DESC';
+
+    const users = await dbAll(query, params) as any[];
     res.json(users);
   } catch (error) {
     console.error('Ошибка получения пользователей:', error);
@@ -49,7 +81,8 @@ router.post(
     body('address').notEmpty().withMessage('Адрес обязателен'),
     body('plotNumber').notEmpty().withMessage('Номер участка обязателен'),
     body('phone').notEmpty().withMessage('Телефон обязателен'),
-    body('role').isIn(['user', 'security', 'admin']).withMessage('Роль должна быть user, security или admin'),
+    body('role').isIn(['user', 'security', 'admin', 'foreman']).withMessage('Роль должна быть user, security, admin или foreman'),
+    body('deactivationDate').optional().isISO8601().withMessage('Некорректная дата деактивации'),
   ],
   async (req: AuthRequest, res: Response) => {
     const errors = validationResult(req);
@@ -57,9 +90,15 @@ router.post(
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password, fullName, address, plotNumber, phone, role } = req.body;
+    const { email, password, fullName, address, plotNumber, phone, role, deactivationDate } = req.body;
 
     try {
+      // Валидация пароля
+      const passwordValidation = validatePassword(password);
+      if (!passwordValidation.valid) {
+        return res.status(400).json({ error: passwordValidation.error });
+      }
+
       const existingUser = await dbGet('SELECT id FROM users WHERE email = $1', [email]);
       if (existingUser) {
         return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
@@ -68,8 +107,8 @@ router.post(
       const hashedPassword = await bcrypt.hash(password, 10);
 
       const result = await dbRun(
-        'INSERT INTO users (email, password, "fullName", address, "plotNumber", phone, role) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
-        [email, hashedPassword, fullName, address, plotNumber, phone, role || 'user']
+        'INSERT INTO users (email, password, "fullName", address, "plotNumber", phone, role, "deactivationDate") VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
+        [email, hashedPassword, fullName, address, plotNumber, phone, role || 'user', deactivationDate || null]
       );
 
       res.status(201).json({
@@ -99,7 +138,9 @@ router.put(
     body('address').optional().notEmpty().withMessage('Адрес не может быть пустым'),
     body('plotNumber').optional().notEmpty().withMessage('Номер участка не может быть пустым'),
     body('phone').optional().notEmpty().withMessage('Телефон не может быть пустым'),
-    body('role').optional().isIn(['user', 'security', 'admin']).withMessage('Некорректная роль'),
+    body('role').optional().isIn(['user', 'security', 'admin', 'foreman']).withMessage('Некорректная роль'),
+    body('deactivationDate').optional().isISO8601().withMessage('Некорректная дата деактивации'),
+    body('deactivate').optional().isBoolean().withMessage('deactivate должен быть boolean'),
   ],
   async (req: AuthRequest, res: Response) => {
     const errors = validationResult(req);
@@ -113,7 +154,7 @@ router.put(
         return res.status(404).json({ error: 'Пользователь не найден' });
       }
 
-      const { email, fullName, address, plotNumber, phone, role } = req.body;
+      const { email, fullName, address, plotNumber, phone, role, deactivationDate, deactivate } = req.body;
       const updateFields: string[] = [];
       const updateParams: any[] = [];
       let paramIndex = 1;
@@ -157,6 +198,20 @@ router.put(
         updateFields.push(`role = $${paramIndex}`);
         updateParams.push(role);
         paramIndex++;
+      }
+
+      if (deactivationDate !== undefined) {
+        updateFields.push(`"deactivationDate" = $${paramIndex}`);
+        updateParams.push(deactivationDate || null);
+        paramIndex++;
+      }
+
+      if (deactivate !== undefined) {
+        if (deactivate) {
+          updateFields.push(`"deactivatedAt" = CURRENT_TIMESTAMP`);
+        } else {
+          updateFields.push(`"deactivatedAt" = NULL`);
+        }
       }
 
       if (updateFields.length > 0) {
@@ -274,6 +329,12 @@ router.put(
 
       const { currentPassword, newPassword } = req.body;
 
+      // Валидация пароля
+      const passwordValidation = validatePassword(newPassword);
+      if (!passwordValidation.valid) {
+        return res.status(400).json({ error: passwordValidation.error });
+      }
+
       const isValidPassword = await bcrypt.compare(currentPassword, user.password);
       if (!isValidPassword) {
         return res.status(401).json({ error: 'Неверный текущий пароль' });
@@ -346,7 +407,13 @@ router.post(
   '/reset-password',
   [
     body('token').notEmpty().withMessage('Токен обязателен'),
-    body('newPassword').isLength({ min: 6 }).withMessage('Пароль должен быть не менее 6 символов'),
+    body('newPassword').custom((value) => {
+      const validation = validatePassword(value);
+      if (!validation.valid) {
+        throw new Error(validation.error);
+      }
+      return true;
+    }),
   ],
   async (req: express.Request, res: Response) => {
     const errors = validationResult(req);
