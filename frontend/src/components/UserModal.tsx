@@ -48,8 +48,12 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
       setRole(user.role);
       setDeactivationDate(user.deactivationDate || '');
       setDeactivate(!!user.deactivatedAt);
-      // Всегда загружаем участки при открытии модального окна
-      fetchUserPlots();
+      // Загружаем участки только для ролей user и foreman
+      if (user.role === 'user' || user.role === 'foreman') {
+        fetchUserPlots();
+      } else {
+        setPlots([]);
+      }
     } else {
       setPlots([]);
     }
@@ -94,7 +98,8 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
     try {
       if (!user) {
         // Создание нового пользователя
-        if (plots.length === 0) {
+        // Участки обязательны только для ролей user и foreman
+        if ((role === 'user' || role === 'foreman') && plots.length === 0) {
           setError('Добавьте хотя бы один участок');
           return;
         }
@@ -104,8 +109,11 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
           fullName,
           phone: phone.replace(/\D/g, ''), // Отправляем только цифры
           role,
-          plots: plots.map(p => ({ address: p.address, plotNumber: p.plotNumber })),
         };
+        // Отправляем участки только для ролей user и foreman
+        if (role === 'user' || role === 'foreman') {
+          data.plots = plots.map(p => ({ address: p.address, plotNumber: p.plotNumber }));
+        }
         if (role === 'foreman') {
           // Отправляем null если дата не указана или пустая
           const dateValue = deactivationDate?.trim();
@@ -130,12 +138,14 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
           data.deactivationDate = null;
         }
         data.deactivate = deactivate;
-        // Отправляем участки вместе с данными пользователя
-        data.plots = plots.map(p => ({ 
-          id: p.id && p.id > 1000000 ? p.id : null, // Отправляем ID только для существующих участков
-          address: p.address, 
-          plotNumber: p.plotNumber 
-        }));
+        // Отправляем участки только для ролей user и foreman
+        if (role === 'user' || role === 'foreman') {
+          data.plots = plots.map(p => ({ 
+            id: p.id && p.id > 1000000 ? p.id : null, // Отправляем ID только для существующих участков
+            address: p.address, 
+            plotNumber: p.plotNumber 
+          }));
+        }
         console.log('Отправка данных пользователя с участками:', data);
         const response = await api.put(`/users/${user.id}`, data);
         console.log('Ответ сервера:', response.data);
@@ -194,69 +204,72 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
             />
           </div>
 
-          <div className="form-group">
-            <label>Участки (адрес и номер участка - единое целое)</label>
-            {plots.length > 0 && (
-              <div style={{ marginBottom: '15px' }}>
-                {plots.map((plot, index) => (
-                  <div key={plot.id || index} style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    padding: '10px',
-                    marginBottom: '10px',
-                    backgroundColor: '#f8f9fa',
-                    borderRadius: '4px'
-                  }}>
-                    <div>
-                      <div><strong>Участок:</strong> {plot.plotNumber}</div>
-                      <div><strong>Адрес:</strong> {plot.address}</div>
+          {/* Участки отображаются только для ролей user и foreman */}
+          {(role === 'user' || role === 'foreman') && (
+            <div className="form-group">
+              <label>Участки (адрес и номер участка - единое целое)</label>
+              {plots.length > 0 && (
+                <div style={{ marginBottom: '15px' }}>
+                  {plots.map((plot, index) => (
+                    <div key={plot.id || index} style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center',
+                      padding: '10px',
+                      marginBottom: '10px',
+                      backgroundColor: '#f8f9fa',
+                      borderRadius: '4px'
+                    }}>
+                      <div>
+                        <div><strong>Участок:</strong> {plot.plotNumber}</div>
+                        <div><strong>Адрес:</strong> {plot.address}</div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => handleRemovePlot(index)}
+                        style={{ padding: '5px 10px', fontSize: '12px' }}
+                      >
+                        Удалить
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={() => handleRemovePlot(index)}
-                      style={{ padding: '5px 10px', fontSize: '12px' }}
-                    >
-                      Удалить
-                    </button>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              )}
+              
+              <div style={{ borderTop: '1px solid #ddd', paddingTop: '15px', marginTop: '15px' }}>
+                <h4 style={{ marginBottom: '10px', fontSize: '14px' }}>Добавить участок</h4>
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                  <input
+                    type="text"
+                    placeholder="Номер участка"
+                    value={newPlotNumber}
+                    onChange={(e) => setNewPlotNumber(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Адрес"
+                    value={newPlotAddress}
+                    onChange={(e) => setNewPlotAddress(e.target.value)}
+                    style={{ flex: 2 }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handleAddPlot}
+                  >
+                    Добавить
+                  </button>
+                </div>
               </div>
-            )}
-            
-            <div style={{ borderTop: '1px solid #ddd', paddingTop: '15px', marginTop: '15px' }}>
-              <h4 style={{ marginBottom: '10px', fontSize: '14px' }}>Добавить участок</h4>
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                <input
-                  type="text"
-                  placeholder="Номер участка"
-                  value={newPlotNumber}
-                  onChange={(e) => setNewPlotNumber(e.target.value)}
-                  style={{ flex: 1 }}
-                />
-                <input
-                  type="text"
-                  placeholder="Адрес"
-                  value={newPlotAddress}
-                  onChange={(e) => setNewPlotAddress(e.target.value)}
-                  style={{ flex: 2 }}
-                />
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={handleAddPlot}
-                >
-                  Добавить
-                </button>
-              </div>
+              {!user && plots.length === 0 && (
+                <small style={{ color: '#dc3545', fontSize: '12px', display: 'block', marginTop: '5px' }}>
+                  Необходимо добавить хотя бы один участок
+                </small>
+              )}
             </div>
-            {!user && plots.length === 0 && (
-              <small style={{ color: '#dc3545', fontSize: '12px', display: 'block', marginTop: '5px' }}>
-                Необходимо добавить хотя бы один участок
-              </small>
-            )}
-          </div>
+          )}
 
           <div className="form-group">
             <label htmlFor="phone">Контактный телефон</label>
@@ -283,6 +296,13 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
                 // Если меняем роль с прораба на другую, очищаем дату деактивации
                 if (e.target.value !== 'foreman') {
                   setDeactivationDate('');
+                }
+                // Если меняем роль на security или admin, очищаем участки
+                if (e.target.value === 'security' || e.target.value === 'admin') {
+                  setPlots([]);
+                } else if (user && (e.target.value === 'user' || e.target.value === 'foreman')) {
+                  // Если меняем на user или foreman, загружаем участки
+                  fetchUserPlots();
                 }
               }}
               required
