@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import UserModal from '../components/UserModal';
@@ -18,6 +19,7 @@ interface User {
 
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUserModal, setShowUserModal] = useState(false);
@@ -58,6 +60,13 @@ const AdminDashboard = () => {
           <h1>Панель администратора</h1>
           <div className="header-actions">
             <span className="user-info">{user?.fullName}</span>
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => navigate('/settings')}
+              style={{ marginRight: '10px' }}
+            >
+              Настройки
+            </button>
             <button className="btn btn-secondary" onClick={logout}>
               Выйти
             </button>

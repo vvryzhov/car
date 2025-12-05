@@ -98,6 +98,32 @@ export const initDatabase = async () => {
       await dbRun('ALTER TABLE passes ADD COLUMN "securityComment" TEXT');
     }
 
+    // Таблица настроек SMTP
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS smtp_settings (
+        id SERIAL PRIMARY KEY,
+        host VARCHAR(255),
+        port INTEGER,
+        secure BOOLEAN DEFAULT false,
+        user VARCHAR(255),
+        password VARCHAR(255),
+        from_email VARCHAR(255),
+        from_name VARCHAR(255),
+        "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Таблица токенов восстановления пароля
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) NOT NULL,
+        token VARCHAR(255) NOT NULL UNIQUE,
+        "expiresAt" TIMESTAMP NOT NULL,
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Создаем администратора по умолчанию (email: admin@admin.com, password: admin123)
     const adminExists = await dbGet('SELECT id FROM users WHERE email = $1', ['admin@admin.com']);
     if (!adminExists) {

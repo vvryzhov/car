@@ -67,9 +67,11 @@ const Login = () => {
               Забыли пароль?
             </button>
           </div>
+          <div style={{ marginTop: '20px', textAlign: 'center', paddingTop: '20px', borderTop: '1px solid #e0e0e0' }}>
+            <p style={{ margin: 0, fontSize: '12px', color: '#666' }}>Powered by jirajedi</p>
+          </div>
         </form>
       </div>
-      <Footer />
     </div>
   );
 };

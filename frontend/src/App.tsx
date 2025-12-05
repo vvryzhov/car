@@ -5,6 +5,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import Dashboard from './pages/Dashboard';
 import SecurityDashboard from './pages/SecurityDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import Settings from './pages/Settings';
 import './App.css';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
@@ -28,6 +29,7 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
       <Route path="/forgot-password" element={!user ? <ForgotPassword /> : <Navigate to="/dashboard" />} />
+      <Route path="/reset-password" element={!user ? <ForgotPassword /> : <Navigate to="/dashboard" />} />
       <Route
         path="/dashboard"
         element={
@@ -39,6 +41,14 @@ const AppRoutes = () => {
             ) : (
               <Dashboard />
             )}
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <PrivateRoute>
+            {user?.role === 'admin' ? <Settings /> : <Navigate to="/dashboard" />}
           </PrivateRoute>
         }
       />

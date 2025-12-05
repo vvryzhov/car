@@ -292,11 +292,60 @@ router.put(
   }
 );
 
-// Восстановление пароля (без авторизации)
+// Запрос на восстановление пароля (отправка email с токеном)
+router.post(
+  '/reset-password-request',
+  [
+    body('email').isEmail().withMessage('Некорректный email'),
+  ],
+  async (req: express.Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const { email } = req.body;
+      const crypto = require('crypto');
+
+      const user = await dbGet('SELECT id FROM users WHERE email = $1', [email]) as any;
+      if (!user) {
+        // Не раскрываем, существует ли пользователь
+        return res.json({ message: 'Если пользователь с таким email существует, письмо отправлено' });
+      }
+
+      // Генерируем токен
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 1); // Токен действителен 1 час
+
+      // Удаляем старые токены для этого email
+      await dbRun('DELETE FROM password_reset_tokens WHERE email = $1', [email]);
+
+      // Сохраняем новый токен
+      await dbRun(
+        'INSERT INTO password_reset_tokens (email, token, "expiresAt") VALUES ($1, $2, $3)',
+        [email, token, expiresAt]
+      );
+
+      // Отправляем email
+      const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:8080'}/reset-password?token=${token}`;
+      const { sendPasswordResetEmail } = require('../services/email');
+      await sendPasswordResetEmail(email, token, resetUrl);
+
+      res.json({ message: 'Если пользователь с таким email существует, письмо отправлено' });
+    } catch (error) {
+      console.error('Ошибка запроса восстановления пароля:', error);
+      res.status(500).json({ error: 'Ошибка сервера' });
+    }
+  }
+);
+
+// Смена пароля по токену
 router.post(
   '/reset-password',
   [
-    body('email').isEmail().withMessage('Некорректный email'),
+    body('token').notEmpty().withMessage('Токен обязателен'),
     body('newPassword').isLength({ min: 6 }).withMessage('Пароль должен быть не менее 6 символов'),
   ],
   async (req: express.Request, res: Response) => {
@@ -306,21 +355,29 @@ router.post(
     }
 
     try {
-      const { email, newPassword } = req.body;
+      const { token, newPassword } = req.body;
 
-      const user = await dbGet('SELECT id FROM users WHERE email = $1', [email]) as any;
-      if (!user) {
-        // Не раскрываем, существует ли пользователь
-        return res.json({ message: 'Если пользователь с таким email существует, пароль был изменен' });
+      // Проверяем токен
+      const tokenRecord = await dbGet(
+        'SELECT * FROM password_reset_tokens WHERE token = $1 AND "expiresAt" > NOW()',
+        [token]
+      ) as any;
+
+      if (!tokenRecord) {
+        return res.status(400).json({ error: 'Недействительный или истекший токен' });
       }
 
+      // Меняем пароль
       const hashedPassword = await bcrypt.hash(newPassword, 10);
       await dbRun(
         'UPDATE users SET password = $1 WHERE email = $2',
-        [hashedPassword, email]
+        [hashedPassword, tokenRecord.email]
       );
 
-      res.json({ message: 'Пароль изменен' });
+      // Удаляем использованный токен
+      await dbRun('DELETE FROM password_reset_tokens WHERE token = $1', [token]);
+
+      res.json({ message: 'Пароль успешно изменен' });
     } catch (error) {
       console.error('Ошибка восстановления пароля:', error);
       res.status(500).json({ error: 'Ошибка сервера' });

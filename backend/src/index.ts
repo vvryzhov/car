@@ -5,6 +5,7 @@ import { initDatabase } from './database';
 import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
 import passRoutes from './routes/passes';
+import settingsRoutes from './routes/settings';
 
 dotenv.config();
 
@@ -18,6 +19,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/passes', passRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Инициализация базы данных и запуск сервера
 initDatabase()
