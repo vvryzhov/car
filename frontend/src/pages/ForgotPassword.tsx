@@ -7,7 +7,6 @@ import './Login.css';
 const ForgotPassword = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
-  const navigate = useNavigate();
 
   // Если есть токен, показываем форму смены пароля
   if (token) {
