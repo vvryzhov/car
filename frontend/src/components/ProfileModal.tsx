@@ -13,6 +13,7 @@ interface User {
   email: string;
   fullName: string;
   phone: string;
+  role?: 'user' | 'security' | 'admin' | 'foreman';
   plots?: Plot[];
 }
 
