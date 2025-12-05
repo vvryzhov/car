@@ -411,18 +411,22 @@ router.put(
         // Добавляем или обновляем участки из нового списка
         for (const plot of plots) {
           if (plot.address && plot.plotNumber) {
-            if (plot.id && plot.id > 1000000) {
+            // Проверяем, существует ли участок с таким ID в базе данных
+            const existingPlot = plot.id ? currentPlots.find(p => p.id === plot.id) : null;
+            
+            if (existingPlot) {
               // Существующий участок - проверяем, нужно ли обновить
-              const existingPlot = currentPlots.find(p => p.id === plot.id);
-              if (existingPlot && (existingPlot.address !== plot.address || existingPlot.plotNumber !== plot.plotNumber)) {
+              if (existingPlot.address !== plot.address || existingPlot.plotNumber !== plot.plotNumber) {
                 console.log('Обновление участка:', plot.id, plot.address, plot.plotNumber);
                 await dbRun(
                   'UPDATE user_plots SET address = $1, "plotNumber" = $2 WHERE id = $3',
                   [plot.address, plot.plotNumber, plot.id]
                 );
+              } else {
+                console.log('Участок не изменился, пропускаем:', plot.id);
               }
             } else {
-              // Новый участок - добавляем
+              // Новый участок - добавляем (независимо от того, есть ли временный ID)
               try {
                 console.log('Добавление нового участка:', plot.address, plot.plotNumber);
                 await dbRun(
