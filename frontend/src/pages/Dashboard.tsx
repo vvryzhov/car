@@ -87,6 +87,9 @@ const Dashboard = () => {
             <button className="btn btn-secondary" onClick={() => setShowProfileModal(true)}>
               Профиль
             </button>
+            <button className="btn btn-secondary" onClick={() => window.location.href = '/help'} style={{ marginRight: '10px' }}>
+              Справка
+            </button>
             <button className="btn btn-secondary" onClick={logout}>
               Выйти
             </button>
