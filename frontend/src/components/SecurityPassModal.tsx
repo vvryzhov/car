@@ -59,7 +59,7 @@ const SecurityPassModal = ({ pass, onClose, onSave }: SecurityPassModalProps) =>
         address,
         fullName,
         plotNumber,
-        comment: comment || null,
+        // Не отправляем comment - охрана не может его менять
         securityComment: securityComment || null,
         status,
       };
@@ -91,7 +91,6 @@ const SecurityPassModal = ({ pass, onClose, onSave }: SecurityPassModalProps) =>
               required
             >
               <option value="pending">Ожидает</option>
-              <option value="approved">Одобрено</option>
               <option value="activated">Активирован</option>
               <option value="rejected">Отклонено</option>
             </select>

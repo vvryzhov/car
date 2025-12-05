@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import PassModal from '../components/PassModal';
 import ProfileModal from '../components/ProfileModal';
+import Footer from '../components/Footer';
 import { format } from 'date-fns';
 
 interface Pass {
@@ -138,7 +139,6 @@ const Dashboard = () => {
                     <td data-label="Статус">
                       <span className={`badge badge-${pass.status}`}>
                         {pass.status === 'pending' ? 'Ожидает' : 
-                         pass.status === 'approved' ? 'Одобрено' : 
                          pass.status === 'activated' ? 'Активирован' : 
                          'Отклонено'}
                       </span>
@@ -189,6 +189,7 @@ const Dashboard = () => {
           onSave={handleProfileSaved}
         />
       )}
+      <Footer />
     </div>
   );
 };

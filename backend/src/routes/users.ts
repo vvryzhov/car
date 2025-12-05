@@ -48,7 +48,7 @@ router.post(
     body('address').notEmpty().withMessage('Адрес обязателен'),
     body('plotNumber').notEmpty().withMessage('Номер участка обязателен'),
     body('phone').notEmpty().withMessage('Телефон обязателен'),
-    body('role').isIn(['user', 'security']).withMessage('Роль должна быть user или security'),
+    body('role').isIn(['user', 'security', 'admin']).withMessage('Роль должна быть user, security или admin'),
   ],
   async (req: AuthRequest, res: Response) => {
     const errors = validationResult(req);
@@ -87,14 +87,139 @@ router.post(
   }
 );
 
-// Обновить профиль пользователя
+// Обновить пользователя (только для админа)
+router.put(
+  '/:id',
+  authenticate,
+  requireRole(['admin']),
+  [
+    body('email').optional().isEmail().withMessage('Некорректный email'),
+    body('fullName').optional().notEmpty().withMessage('ФИО не может быть пустым'),
+    body('address').optional().notEmpty().withMessage('Адрес не может быть пустым'),
+    body('plotNumber').optional().notEmpty().withMessage('Номер участка не может быть пустым'),
+    body('phone').optional().notEmpty().withMessage('Телефон не может быть пустым'),
+    body('role').optional().isIn(['user', 'security', 'admin']).withMessage('Некорректная роль'),
+  ],
+  async (req: AuthRequest, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const user = await dbGet('SELECT * FROM users WHERE id = $1', [req.params.id]) as any;
+      if (!user) {
+        return res.status(404).json({ error: 'Пользователь не найден' });
+      }
+
+      const { email, fullName, address, plotNumber, phone, role } = req.body;
+      const updateFields: string[] = [];
+      const updateParams: any[] = [];
+      let paramIndex = 1;
+
+      if (email !== undefined) {
+        // Проверяем, что email не занят другим пользователем
+        const existingUser = await dbGet('SELECT id FROM users WHERE email = $1 AND id != $2', [email, req.params.id]);
+        if (existingUser) {
+          return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
+        }
+        updateFields.push(`email = $${paramIndex}`);
+        updateParams.push(email);
+        paramIndex++;
+      }
+
+      if (fullName !== undefined) {
+        updateFields.push(`"fullName" = $${paramIndex}`);
+        updateParams.push(fullName);
+        paramIndex++;
+      }
+
+      if (address !== undefined) {
+        updateFields.push(`address = $${paramIndex}`);
+        updateParams.push(address);
+        paramIndex++;
+      }
+
+      if (plotNumber !== undefined) {
+        updateFields.push(`"plotNumber" = $${paramIndex}`);
+        updateParams.push(plotNumber);
+        paramIndex++;
+      }
+
+      if (phone !== undefined) {
+        updateFields.push(`phone = $${paramIndex}`);
+        updateParams.push(phone);
+        paramIndex++;
+      }
+
+      if (role !== undefined) {
+        updateFields.push(`role = $${paramIndex}`);
+        updateParams.push(role);
+        paramIndex++;
+      }
+
+      if (updateFields.length > 0) {
+        updateParams.push(req.params.id);
+        await dbRun(
+          `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${paramIndex}`,
+          updateParams
+        );
+      }
+
+      const updatedUser = await dbGet(
+        'SELECT id, email, "fullName", address, "plotNumber", phone, role FROM users WHERE id = $1',
+        [req.params.id]
+      ) as any;
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error('Ошибка обновления пользователя:', error);
+      res.status(500).json({ error: 'Ошибка сервера' });
+    }
+  }
+);
+
+// Изменить пароль пользователя (админ может менять пароль любого пользователя)
+router.put(
+  '/:id/password',
+  authenticate,
+  requireRole(['admin']),
+  [
+    body('password').isLength({ min: 6 }).withMessage('Пароль должен быть не менее 6 символов'),
+  ],
+  async (req: AuthRequest, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const user = await dbGet('SELECT id FROM users WHERE id = $1', [req.params.id]) as any;
+      if (!user) {
+        return res.status(404).json({ error: 'Пользователь не найден' });
+      }
+
+      const { password } = req.body;
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      await dbRun(
+        'UPDATE users SET password = $1 WHERE id = $2',
+        [hashedPassword, req.params.id]
+      );
+
+      res.json({ message: 'Пароль изменен' });
+    } catch (error) {
+      console.error('Ошибка изменения пароля:', error);
+      res.status(500).json({ error: 'Ошибка сервера' });
+    }
+  }
+);
+
+// Обновить профиль пользователя (только свои данные, без ФИО, адреса и участка)
 router.put(
   '/me',
   authenticate,
   [
-    body('fullName').optional().notEmpty().withMessage('ФИО не может быть пустым'),
-    body('address').optional().notEmpty().withMessage('Адрес не может быть пустым'),
-    body('plotNumber').optional().notEmpty().withMessage('Номер участка не может быть пустым'),
     body('phone').optional().notEmpty().withMessage('Телефон не может быть пустым'),
   ],
   async (req: AuthRequest, res: Response) => {
@@ -103,13 +228,15 @@ router.put(
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { fullName, address, plotNumber, phone } = req.body;
+    const { phone } = req.body;
 
     try {
-      await dbRun(
-        'UPDATE users SET "fullName" = $1, address = $2, "plotNumber" = $3, phone = $4 WHERE id = $5',
-        [fullName, address, plotNumber, phone, req.user!.id]
-      );
+      if (phone !== undefined) {
+        await dbRun(
+          'UPDATE users SET phone = $1 WHERE id = $2',
+          [phone, req.user!.id]
+        );
+      }
 
       const user = await dbGet(
         'SELECT id, email, "fullName", address, "plotNumber", phone, role FROM users WHERE id = $1',
@@ -119,6 +246,83 @@ router.put(
       res.json(user);
     } catch (error) {
       console.error('Ошибка обновления профиля:', error);
+      res.status(500).json({ error: 'Ошибка сервера' });
+    }
+  }
+);
+
+// Изменить свой пароль
+router.put(
+  '/me/password',
+  authenticate,
+  [
+    body('currentPassword').notEmpty().withMessage('Текущий пароль обязателен'),
+    body('newPassword').isLength({ min: 6 }).withMessage('Новый пароль должен быть не менее 6 символов'),
+  ],
+  async (req: AuthRequest, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const user = await dbGet('SELECT * FROM users WHERE id = $1', [req.user!.id]) as any;
+      if (!user) {
+        return res.status(404).json({ error: 'Пользователь не найден' });
+      }
+
+      const { currentPassword, newPassword } = req.body;
+
+      const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: 'Неверный текущий пароль' });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await dbRun(
+        'UPDATE users SET password = $1 WHERE id = $2',
+        [hashedPassword, req.user!.id]
+      );
+
+      res.json({ message: 'Пароль изменен' });
+    } catch (error) {
+      console.error('Ошибка изменения пароля:', error);
+      res.status(500).json({ error: 'Ошибка сервера' });
+    }
+  }
+);
+
+// Восстановление пароля (без авторизации)
+router.post(
+  '/reset-password',
+  [
+    body('email').isEmail().withMessage('Некорректный email'),
+    body('newPassword').isLength({ min: 6 }).withMessage('Пароль должен быть не менее 6 символов'),
+  ],
+  async (req: express.Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const { email, newPassword } = req.body;
+
+      const user = await dbGet('SELECT id FROM users WHERE email = $1', [email]) as any;
+      if (!user) {
+        // Не раскрываем, существует ли пользователь
+        return res.json({ message: 'Если пользователь с таким email существует, пароль был изменен' });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await dbRun(
+        'UPDATE users SET password = $1 WHERE email = $2',
+        [hashedPassword, email]
+      );
+
+      res.json({ message: 'Пароль изменен' });
+    } catch (error) {
+      console.error('Ошибка восстановления пароля:', error);
       res.status(500).json({ error: 'Ошибка сервера' });
     }
   }

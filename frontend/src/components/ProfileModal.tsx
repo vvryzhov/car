@@ -16,25 +16,45 @@ interface ProfileModalProps {
 }
 
 const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
-  const [fullName, setFullName] = useState(user.fullName);
-  const [address, setAddress] = useState(user.address);
-  const [plotNumber, setPlotNumber] = useState(user.plotNumber);
   const [phone, setPhone] = useState(user.phone);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Если меняем пароль, проверяем совпадение
+    if (showPasswordChange) {
+      if (newPassword !== confirmPassword) {
+        setError('Новые пароли не совпадают');
+        return;
+      }
+      if (newPassword.length < 6) {
+        setError('Пароль должен быть не менее 6 символов');
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
+      // Обновляем телефон
       const response = await api.put('/users/me', {
-        fullName,
-        address,
-        plotNumber,
         phone,
       });
+
+      // Если меняем пароль
+      if (showPasswordChange && currentPassword && newPassword) {
+        await api.put('/users/me/password', {
+          currentPassword,
+          newPassword,
+        });
+      }
 
       onSave(response.data);
     } catch (err: any) {
@@ -58,10 +78,11 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
             <input
               type="text"
               id="fullName"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              required
+              value={user.fullName}
+              disabled
+              style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
             />
+            <small style={{ color: '#666', fontSize: '12px' }}>ФИО можно изменить только через администратора</small>
           </div>
 
           <div className="form-group">
@@ -69,10 +90,11 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
             <input
               type="text"
               id="address"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              required
+              value={user.address}
+              disabled
+              style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
             />
+            <small style={{ color: '#666', fontSize: '12px' }}>Адрес можно изменить только через администратора</small>
           </div>
 
           <div className="form-group">
@@ -80,10 +102,11 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
             <input
               type="text"
               id="plotNumber"
-              value={plotNumber}
-              onChange={(e) => setPlotNumber(e.target.value)}
-              required
+              value={user.plotNumber}
+              disabled
+              style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
             />
+            <small style={{ color: '#666', fontSize: '12px' }}>Номер участка можно изменить только через администратора</small>
           </div>
 
           <div className="form-group">
@@ -96,6 +119,56 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
               required
             />
           </div>
+
+          <div className="form-group">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setShowPasswordChange(!showPasswordChange)}
+              style={{ marginBottom: '10px' }}
+            >
+              {showPasswordChange ? 'Отменить смену пароля' : 'Изменить пароль'}
+            </button>
+          </div>
+
+          {showPasswordChange && (
+            <>
+              <div className="form-group">
+                <label htmlFor="currentPassword">Текущий пароль</label>
+                <input
+                  type="password"
+                  id="currentPassword"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  required={showPasswordChange}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="newPassword">Новый пароль</label>
+                <input
+                  type="password"
+                  id="newPassword"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required={showPasswordChange}
+                  minLength={6}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="confirmPassword">Подтвердите новый пароль</label>
+                <input
+                  type="password"
+                  id="confirmPassword"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required={showPasswordChange}
+                  minLength={6}
+                />
+              </div>
+            </>
+          )}
 
           {error && <div className="error">{error}</div>}
 
@@ -114,4 +187,3 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
 };
 
 export default ProfileModal;
-

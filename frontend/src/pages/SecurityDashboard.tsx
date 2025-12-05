@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import SecurityPassModal from '../components/SecurityPassModal';
+import Footer from '../components/Footer';
 import { format } from 'date-fns';
 
 interface Pass {
@@ -165,7 +166,6 @@ const SecurityDashboard = () => {
                     <td data-label="Статус">
                       <span className={`badge badge-${pass.status}`}>
                         {pass.status === 'pending' ? 'Ожидает' : 
-                         pass.status === 'approved' ? 'Одобрено' : 
                          pass.status === 'activated' ? 'Активирован' : 
                          'Отклонено'}
                       </span>
@@ -195,6 +195,7 @@ const SecurityDashboard = () => {
           onSave={handlePassSaved}
         />
       )}
+      <Footer />
     </div>
   );
 };

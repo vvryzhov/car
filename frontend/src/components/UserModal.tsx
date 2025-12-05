@@ -51,21 +51,29 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
     setLoading(true);
 
     try {
-      const data: any = {
-        email,
-        fullName,
-        address,
-        plotNumber,
-        phone,
-        role,
-      };
-
       if (!user) {
-        data.password = password;
+        // Создание нового пользователя
+        const data: any = {
+          email,
+          password,
+          fullName,
+          address,
+          plotNumber,
+          phone,
+          role,
+        };
         await api.post('/users', data);
       } else {
-        // Для существующего пользователя пароль не обновляем через этот интерфейс
-        // Можно добавить отдельную функцию смены пароля
+        // Редактирование существующего пользователя
+        const data: any = {
+          email,
+          fullName,
+          address,
+          plotNumber,
+          phone,
+          role,
+        };
+        await api.put(`/users/${user.id}`, data);
       }
 
       onSave();
@@ -93,7 +101,6 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              disabled={!!user}
             />
           </div>
 
@@ -165,6 +172,7 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
             >
               <option value="user">Пользователь</option>
               <option value="security">Охрана</option>
+              <option value="admin">Администратор</option>
             </select>
           </div>
 
@@ -185,4 +193,3 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
 };
 
 export default UserModal;
-

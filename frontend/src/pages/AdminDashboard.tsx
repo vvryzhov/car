@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import UserModal from '../components/UserModal';
+import ChangePasswordModal from '../components/ChangePasswordModal';
+import Footer from '../components/Footer';
 
 interface User {
   id: number;
@@ -20,6 +22,8 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordUserId, setPasswordUserId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -88,6 +92,7 @@ const AdminDashboard = () => {
                     <th>Телефон</th>
                     <th>Роль</th>
                     <th>Дата создания</th>
+                    <th>Действия</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -104,6 +109,30 @@ const AdminDashboard = () => {
                         </span>
                       </td>
                       <td data-label="Дата создания">{new Date(u.createdAt).toLocaleDateString('ru-RU')}</td>
+                      <td data-label="Действия">
+                        <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                          <button
+                            className="btn btn-secondary"
+                            onClick={() => {
+                              setEditingUser(u);
+                              setShowUserModal(true);
+                            }}
+                            style={{ padding: '5px 10px', fontSize: '14px' }}
+                          >
+                            Редактировать
+                          </button>
+                          <button
+                            className="btn btn-primary"
+                            onClick={() => {
+                              setPasswordUserId(u.id);
+                              setShowPasswordModal(true);
+                            }}
+                            style={{ padding: '5px 10px', fontSize: '14px' }}
+                          >
+                            Сменить пароль
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -123,6 +152,21 @@ const AdminDashboard = () => {
           onSave={handleUserSaved}
         />
       )}
+
+      {showPasswordModal && passwordUserId && (
+        <ChangePasswordModal
+          userId={passwordUserId}
+          onClose={() => {
+            setShowPasswordModal(false);
+            setPasswordUserId(null);
+          }}
+          onSuccess={() => {
+            fetchUsers();
+          }}
+        />
+      )}
+
+      <Footer />
     </div>
   );
 };

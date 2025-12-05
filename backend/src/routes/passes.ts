@@ -118,7 +118,7 @@ router.put(
     body('vehicleNumber').optional().notEmpty().withMessage('Номер авто не может быть пустым'),
     body('entryDate').optional().notEmpty().withMessage('Дата въезда не может быть пустой'),
     body('address').optional().notEmpty().withMessage('Адрес не может быть пустым'),
-    body('status').optional().isIn(['pending', 'approved', 'activated', 'rejected']).withMessage('Некорректный статус'),
+    body('status').optional().isIn(['pending', 'activated', 'rejected']).withMessage('Некорректный статус'),
   ],
   async (req: AuthRequest, res: Response) => {
     const errors = validationResult(req);
@@ -151,6 +151,9 @@ router.put(
         plotNumber
       } = req.body;
 
+      // Если это охрана, не позволяем менять комментарий пользователя
+      const updateComment = req.user!.role === 'admin' ? (comment !== undefined ? comment : pass.comment) : pass.comment;
+
       // Обновляем пропуск
       await dbRun(
         'UPDATE passes SET "vehicleType" = $1, "vehicleNumber" = $2, "entryDate" = $3, address = $4, comment = $5, "securityComment" = $6, status = $7 WHERE id = $8',
@@ -159,7 +162,7 @@ router.put(
           vehicleNumber !== undefined ? vehicleNumber : pass.vehicleNumber,
           entryDate !== undefined ? entryDate : pass.entryDate,
           address !== undefined ? address : pass.address,
-          comment !== undefined ? comment : pass.comment,
+          updateComment,
           securityComment !== undefined ? securityComment : pass.securityComment,
           status !== undefined ? status : pass.status,
           req.params.id,

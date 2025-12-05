@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import Footer from '../components/Footer';
 import './Login.css';
 
 const Login = () => {
@@ -57,12 +58,18 @@ const Login = () => {
           <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading ? 'Вход...' : 'Войти'}
           </button>
+          <div style={{ marginTop: '15px', textAlign: 'center' }}>
+            <button
+              type="button"
+              onClick={() => navigate('/forgot-password')}
+              style={{ background: 'none', border: 'none', color: '#007bff', textDecoration: 'underline', cursor: 'pointer', fontSize: '14px' }}
+            >
+              Забыли пароль?
+            </button>
+          </div>
         </form>
-        <div className="login-info">
-          <p>Для тестирования используйте:</p>
-          <p><strong>Администратор:</strong> admin@admin.com / admin123</p>
-        </div>
       </div>
+      <Footer />
     </div>
   );
 };
