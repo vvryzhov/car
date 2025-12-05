@@ -18,6 +18,7 @@ const Settings = () => {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(true);
+  const [testEmail, setTestEmail] = useState('');
 
   useEffect(() => {
     fetchSettings();
@@ -51,9 +52,8 @@ const Settings = () => {
   };
 
   const handleTestEmail = async () => {
-    const testEmail = smtpSettings.user || smtpSettings.from_email;
-    if (!testEmail) {
-      setError('Сначала заполните email пользователя или отправителя');
+    if (!testEmail || !testEmail.trim()) {
+      setError('Введите email получателя тестового письма');
       return;
     }
 
@@ -62,10 +62,28 @@ const Settings = () => {
     setLoading(true);
 
     try {
-      await api.post('/settings/smtp/test', { email: testEmail });
-      setSuccess('Тестовое письмо отправлено на ' + testEmail);
+      const response = await api.post('/settings/smtp/test', { email: testEmail.trim() });
+      setSuccess(response.data?.message || `Тестовое письмо успешно отправлено на ${testEmail}`);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Ошибка отправки тестового письма');
+      const errorMessage = err.response?.data?.error || 'Ошибка отправки тестового письма';
+      const errorDetails = err.response?.data?.details || err.response?.data?.error || err.message || 'Неизвестная ошибка';
+      
+      // Формируем подробное сообщение об ошибке
+      let fullError = errorMessage;
+      if (errorDetails && errorDetails !== errorMessage) {
+        fullError += `\n\nДетали: ${errorDetails}`;
+      }
+      
+      // Добавляем информацию о возможных причинах
+      if (errorMessage.includes('аутентификац') || errorMessage.includes('EAUTH')) {
+        fullError += '\n\nВозможные причины:\n- Неверный логин или пароль SMTP\n- Для Gmail необходимо использовать пароль приложения, а не обычный пароль';
+      } else if (errorMessage.includes('подключен') || errorMessage.includes('ECONNECTION')) {
+        fullError += '\n\nВозможные причины:\n- Неверный хост или порт SMTP\n- Проблемы с сетью или файрволом';
+      } else if (errorMessage.includes('таймаут') || errorMessage.includes('ETIMEDOUT')) {
+        fullError += '\n\nВозможные причины:\n- SMTP сервер недоступен\n- Проблемы с сетью';
+      }
+      
+      setError(fullError);
     } finally {
       setLoading(false);
     }
@@ -185,18 +203,45 @@ const Settings = () => {
               />
             </div>
 
-            {error && <div className="error">{error}</div>}
+            {error && (
+              <div className="error" style={{ whiteSpace: 'pre-line', marginBottom: '15px' }}>
+                {error}
+              </div>
+            )}
             {success && <div style={{ color: '#28a745', marginBottom: '15px' }}>{success}</div>}
 
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
-              <button type="button" className="btn btn-secondary" onClick={handleTestEmail} disabled={loading}>
-                Отправить тестовое письмо
-              </button>
               <button type="submit" className="btn btn-primary" disabled={loading}>
                 {loading ? 'Сохранение...' : 'Сохранить'}
               </button>
             </div>
           </form>
+
+          <div style={{ marginTop: '40px', padding: '20px', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '15px' }}>Тестовая отправка письма</h3>
+            <p style={{ color: '#666', marginBottom: '15px' }}>
+              Введите email получателя для отправки тестового письма и проверки настроек SMTP.
+            </p>
+            <div className="form-group">
+              <label htmlFor="testEmail">Email получателя</label>
+              <input
+                type="email"
+                id="testEmail"
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+                placeholder="test@example.com"
+                style={{ marginBottom: '10px' }}
+              />
+            </div>
+            <button 
+              type="button" 
+              className="btn btn-secondary" 
+              onClick={handleTestEmail} 
+              disabled={loading || !testEmail.trim()}
+            >
+              {loading ? 'Отправка...' : 'Отправить тестовое письмо'}
+            </button>
+          </div>
 
           <div style={{ marginTop: '30px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
             <h3 style={{ marginTop: 0 }}>Примеры настроек:</h3>

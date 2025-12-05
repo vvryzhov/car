@@ -103,7 +103,9 @@ router.post(
       const config = await getSMTPConfig();
 
       if (!config) {
-        return res.status(400).json({ error: 'SMTP настройки не найдены' });
+        return res.status(400).json({ 
+          error: 'SMTP настройки не найдены. Сначала сохраните настройки SMTP.' 
+        });
       }
 
       const testHtml = `
@@ -112,16 +114,23 @@ router.post(
         <p>Если вы получили это письмо, значит настройки работают корректно.</p>
       `;
 
-      const sent = await sendEmail(email, 'Тестовое письмо', testHtml);
+      const result = await sendEmail(email, 'Тестовое письмо', testHtml);
 
-      if (sent) {
-        res.json({ message: 'Тестовое письмо отправлено' });
+      if (result.success) {
+        res.json({ message: `Тестовое письмо успешно отправлено на ${email}` });
       } else {
-        res.status(500).json({ error: 'Ошибка отправки письма' });
+        res.status(500).json({ 
+          error: result.error || 'Ошибка отправки письма',
+          details: result.error 
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Ошибка отправки тестового письма:', error);
-      res.status(500).json({ error: 'Ошибка сервера' });
+      const errorMessage = error.message || 'Неизвестная ошибка сервера';
+      res.status(500).json({ 
+        error: 'Ошибка сервера при отправке тестового письма',
+        details: errorMessage 
+      });
     }
   }
 );

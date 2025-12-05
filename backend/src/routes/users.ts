@@ -439,7 +439,11 @@ router.post(
 
       // Отправляем email
       const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:8080'}/reset-password?token=${token}`;
-      await sendPasswordResetEmail(email, token, resetUrl);
+      const emailResult = await sendPasswordResetEmail(email, token, resetUrl);
+      if (!emailResult.success) {
+        console.error('Ошибка отправки email для восстановления пароля:', emailResult.error);
+        // Не возвращаем ошибку пользователю, чтобы не раскрывать, существует ли email
+      }
 
       res.json({ message: 'Если пользователь с таким email существует, письмо отправлено' });
     } catch (error) {

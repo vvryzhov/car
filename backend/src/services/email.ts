@@ -32,12 +32,13 @@ export const getSMTPConfig = async (): Promise<SMTPConfig | null> => {
   }
 };
 
-export const sendEmail = async (to: string, subject: string, html: string): Promise<boolean> => {
+export const sendEmail = async (to: string, subject: string, html: string): Promise<{ success: boolean; error?: string }> => {
   try {
     const config = await getSMTPConfig();
     if (!config) {
-      console.error('SMTP настройки не найдены');
-      return false;
+      const errorMsg = 'SMTP настройки не найдены';
+      console.error(errorMsg);
+      return { success: false, error: errorMsg };
     }
 
     const transporter = nodemailer.createTransport({
@@ -50,6 +51,9 @@ export const sendEmail = async (to: string, subject: string, html: string): Prom
       },
     });
 
+    // Проверяем соединение перед отправкой
+    await transporter.verify();
+
     await transporter.sendMail({
       from: `"${config.from_name}" <${config.from_email}>`,
       to,
@@ -57,14 +61,38 @@ export const sendEmail = async (to: string, subject: string, html: string): Prom
       html,
     });
 
-    return true;
-  } catch (error) {
+    return { success: true };
+  } catch (error: any) {
     console.error('Ошибка отправки email:', error);
-    return false;
+    
+    let errorMessage = 'Неизвестная ошибка при отправке письма';
+    
+    if (error.code) {
+      switch (error.code) {
+        case 'EAUTH':
+          errorMessage = 'Ошибка аутентификации: неверный логин или пароль SMTP';
+          break;
+        case 'ECONNECTION':
+          errorMessage = `Ошибка подключения к SMTP серверу ${error.hostname || ''}:${error.port || ''}`;
+          break;
+        case 'ETIMEDOUT':
+          errorMessage = 'Таймаут подключения к SMTP серверу';
+          break;
+        case 'EENVELOPE':
+          errorMessage = 'Ошибка адреса получателя';
+          break;
+        default:
+          errorMessage = `Ошибка SMTP (код: ${error.code}): ${error.message || 'Неизвестная ошибка'}`;
+      }
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    return { success: false, error: errorMessage };
   }
 };
 
-export const sendPasswordResetEmail = async (email: string, token: string, resetUrl: string): Promise<boolean> => {
+export const sendPasswordResetEmail = async (email: string, token: string, resetUrl: string): Promise<{ success: boolean; error?: string }> => {
   const html = `
     <!DOCTYPE html>
     <html>
