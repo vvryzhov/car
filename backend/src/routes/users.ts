@@ -2,6 +2,7 @@ import express, { Response } from 'express';
 import bcrypt from 'bcryptjs';
 import multer from 'multer';
 import { parse } from 'csv-parse/sync';
+import crypto from 'crypto';
 import { body, validationResult } from 'express-validator';
 import { dbGet, dbRun, dbAll } from '../database';
 import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
@@ -636,7 +637,6 @@ router.post(
 
           // Генерируем временный пароль (пользователь должен будет его сменить)
           // Пароль: временный пароль с буквами и цифрами
-          const crypto = require('crypto');
           const tempPassword = 'Temp' + crypto.randomBytes(4).toString('hex') + '123';
           const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
