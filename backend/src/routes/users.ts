@@ -123,8 +123,22 @@ router.get('/:id/plots', authenticate, async (req: AuthRequest, res: Response) =
       return res.status(403).json({ error: 'Доступ запрещен' });
     }
 
-    // Для security и admin не возвращаем участки (даже если они запрашивают свои)
-    if (req.user!.role === 'security' || req.user!.role === 'admin') {
+    // Получаем информацию о пользователе, чьи участки запрашиваются
+    const targetUser = await dbGet('SELECT role FROM users WHERE id = $1', [userId]) as any;
+    
+    // Для security и admin (редактируемых пользователей) не возвращаем участки
+    // Но если это админ запрашивает участки другого пользователя - возвращаем
+    if (req.user!.role === 'admin') {
+      // Админ может видеть участки любых пользователей
+      const plots = await dbAll(
+        'SELECT id, address, "plotNumber" FROM user_plots WHERE "userId" = $1 ORDER BY "createdAt"',
+        [userId]
+      ) as any[];
+      return res.json(plots);
+    }
+    
+    // Если пользователь запрашивает свои участки, но он security или admin - не возвращаем
+    if (targetUser && (targetUser.role === 'security' || targetUser.role === 'admin')) {
       return res.json([]);
     }
 
