@@ -11,6 +11,7 @@ interface Plot {
 interface Pass {
   id?: number;
   vehicleType: string;
+  vehicleBrand?: string;
   vehicleNumber: string;
   entryDate: string;
   address: string;
@@ -47,6 +48,7 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
   };
 
   const [vehicleType, setVehicleType] = useState(pass?.vehicleType || 'легковой');
+  const [vehicleBrand, setVehicleBrand] = useState(pass?.vehicleBrand || '');
   const [vehicleNumber, setVehicleNumber] = useState(pass?.vehicleNumber || '');
   const [entryDate, setEntryDate] = useState(getInitialEntryDate());
   const [selectedPlotId, setSelectedPlotId] = useState<number | null>(
@@ -61,6 +63,7 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
   useEffect(() => {
     if (pass) {
       setVehicleType(pass.vehicleType);
+      setVehicleBrand(pass.vehicleBrand || '');
       setVehicleNumber(pass.vehicleNumber);
       // Сохраняем дату въезда при редактировании
       if (pass.entryDate) {
@@ -107,6 +110,7 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
     try {
       const data = {
         vehicleType,
+        vehicleBrand: vehicleBrand || null,
         vehicleNumber,
         entryDate,
         address,
@@ -148,6 +152,17 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
               <option value="легковой">Легковой</option>
               <option value="грузовой">Грузовой</option>
             </select>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="vehicleBrand">Марка авто</label>
+            <input
+              type="text"
+              id="vehicleBrand"
+              value={vehicleBrand}
+              onChange={(e) => setVehicleBrand(e.target.value)}
+              placeholder="Например: Toyota, BMW, Газель"
+            />
           </div>
 
           <div className="form-group">

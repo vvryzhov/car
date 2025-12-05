@@ -582,6 +582,7 @@ const AdminDashboard = () => {
                         <th>Телефон</th>
                         <th>Участок</th>
                         <th>Тип транспорта</th>
+                        <th>Марка авто</th>
                         <th>Номер авто</th>
                         <th>Дата въезда</th>
                         <th>Адрес</th>
@@ -598,6 +599,7 @@ const AdminDashboard = () => {
                           <td data-label="Телефон">{pass.phone}</td>
                           <td data-label="Участок">{pass.plotNumber || '-'}</td>
                           <td data-label="Тип транспорта">{pass.vehicleType}</td>
+                          <td data-label="Марка авто">{pass.vehicleBrand || '-'}</td>
                           <td data-label="Номер авто">{pass.vehicleNumber}</td>
                           <td data-label="Дата въезда">
                             {format(new Date(pass.entryDate), 'dd.MM.yyyy')}

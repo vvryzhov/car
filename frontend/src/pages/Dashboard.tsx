@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 interface Pass {
   id: number;
   vehicleType: string;
+  vehicleBrand?: string;
   vehicleNumber: string;
   entryDate: string;
   address: string;
@@ -127,6 +128,7 @@ const Dashboard = () => {
                 <thead>
                   <tr>
                     <th>Тип транспорта</th>
+                    <th>Марка авто</th>
                     <th>Номер авто</th>
                     <th>Дата въезда</th>
                     <th>Адрес</th>
@@ -139,6 +141,7 @@ const Dashboard = () => {
                 {passes.map((pass) => (
                   <tr key={pass.id}>
                     <td data-label="Тип транспорта">{pass.vehicleType}</td>
+                    <td data-label="Марка авто">{pass.vehicleBrand || '-'}</td>
                     <td data-label="Номер авто">{pass.vehicleNumber}</td>
                     <td data-label="Дата въезда">
                       {format(new Date(pass.entryDate), 'dd.MM.yyyy')}

@@ -97,6 +97,7 @@ export const initDatabase = async () => {
         id SERIAL PRIMARY KEY,
         "userId" INTEGER NOT NULL,
         "vehicleType" VARCHAR(50) NOT NULL,
+        "vehicleBrand" VARCHAR(100),
         "vehicleNumber" VARCHAR(50) NOT NULL,
         "entryDate" DATE NOT NULL,
         address VARCHAR(255) NOT NULL,
@@ -139,6 +140,17 @@ export const initDatabase = async () => {
     
     if (!columnCheck) {
       await dbRun('ALTER TABLE passes ADD COLUMN "securityComment" TEXT');
+    }
+
+    // Проверяем наличие поля vehicleBrand и добавляем если его нет
+    const vehicleBrandCheck = await dbGet(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name='passes' AND column_name='vehicleBrand'
+    `);
+    
+    if (!vehicleBrandCheck) {
+      await dbRun('ALTER TABLE passes ADD COLUMN "vehicleBrand" VARCHAR(100)');
     }
 
     // Таблица настроек SMTP

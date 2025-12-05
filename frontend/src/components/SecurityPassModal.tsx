@@ -4,6 +4,7 @@ import api from '../services/api';
 interface Pass {
   id: number;
   vehicleType: string;
+  vehicleBrand?: string;
   vehicleNumber: string;
   entryDate: string;
   address: string;
@@ -35,6 +36,7 @@ const SecurityPassModal = ({ pass, onClose, onSave }: SecurityPassModalProps) =>
   };
 
   const [vehicleType, setVehicleType] = useState(pass.vehicleType);
+  const [vehicleBrand, setVehicleBrand] = useState(pass.vehicleBrand || '');
   const [vehicleNumber, setVehicleNumber] = useState(pass.vehicleNumber);
   const [entryDate, setEntryDate] = useState(formatDateForInput(pass.entryDate));
   const [address, setAddress] = useState(pass.address);
@@ -47,6 +49,7 @@ const SecurityPassModal = ({ pass, onClose, onSave }: SecurityPassModalProps) =>
 
   useEffect(() => {
     setVehicleType(pass.vehicleType);
+    setVehicleBrand(pass.vehicleBrand || '');
     setVehicleNumber(pass.vehicleNumber);
     // Правильно форматируем дату при обновлении
     setEntryDate(formatDateForInput(pass.entryDate));
@@ -65,6 +68,7 @@ const SecurityPassModal = ({ pass, onClose, onSave }: SecurityPassModalProps) =>
     try {
       const data = {
         vehicleType,
+        vehicleBrand: vehicleBrand || null,
         vehicleNumber,
         entryDate,
         address,
@@ -129,6 +133,17 @@ const SecurityPassModal = ({ pass, onClose, onSave }: SecurityPassModalProps) =>
               <option value="легковой">Легковой</option>
               <option value="грузовой">Грузовой</option>
             </select>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="vehicleBrand">Марка авто</label>
+            <input
+              type="text"
+              id="vehicleBrand"
+              value={vehicleBrand}
+              onChange={(e) => setVehicleBrand(e.target.value)}
+              placeholder="Например: Toyota, BMW, Газель"
+            />
           </div>
 
           <div className="form-group">

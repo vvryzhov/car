@@ -114,12 +114,12 @@ router.post(
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { vehicleType, vehicleNumber, entryDate, address, plotNumber, comment } = req.body;
+    const { vehicleType, vehicleBrand, vehicleNumber, entryDate, address, plotNumber, comment } = req.body;
 
     try {
       const result = await dbRun(
-        'INSERT INTO passes ("userId", "vehicleType", "vehicleNumber", "entryDate", address, "plotNumber", comment) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
-        [req.user!.id, vehicleType, vehicleNumber, entryDate, address, plotNumber, comment || null]
+        'INSERT INTO passes ("userId", "vehicleType", "vehicleBrand", "vehicleNumber", "entryDate", address, "plotNumber", comment) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
+        [req.user!.id, vehicleType, vehicleBrand || null, vehicleNumber, entryDate, address, plotNumber, comment || null]
       );
 
       const pass = await dbGet('SELECT * FROM passes WHERE id = $1', [result.rows?.[0]?.id]) as any;
@@ -180,9 +180,10 @@ router.put(
 
       // Обновляем пропуск
       await dbRun(
-        'UPDATE passes SET "vehicleType" = $1, "vehicleNumber" = $2, "entryDate" = $3, address = $4, "plotNumber" = $5, comment = $6, "securityComment" = $7, status = $8 WHERE id = $9',
+        'UPDATE passes SET "vehicleType" = $1, "vehicleBrand" = $2, "vehicleNumber" = $3, "entryDate" = $4, address = $5, "plotNumber" = $6, comment = $7, "securityComment" = $8, status = $9 WHERE id = $10',
         [
           vehicleType !== undefined ? vehicleType : pass.vehicleType,
+          vehicleBrand !== undefined ? vehicleBrand : pass.vehicleBrand,
           vehicleNumber !== undefined ? vehicleNumber : pass.vehicleNumber,
           entryDate !== undefined ? entryDate : pass.entryDate,
           address !== undefined ? address : pass.address,
