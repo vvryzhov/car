@@ -134,30 +134,13 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
           data.deactivationDate = null;
         }
         data.deactivate = deactivate;
+        // Отправляем участки вместе с данными пользователя
+        data.plots = plots.map(p => ({ 
+          id: p.id && p.id > 1000000 ? p.id : undefined, // Отправляем ID только для существующих участков
+          address: p.address, 
+          plotNumber: p.plotNumber 
+        }));
         await api.put(`/users/${user.id}`, data);
-        
-        // Обновляем участки отдельно
-        // Сначала получаем текущие участки
-        const currentPlotsResponse = await api.get(`/users/${user.id}/plots`);
-        const currentPlots = currentPlotsResponse.data || [];
-        
-        // Удаляем участки, которых нет в новом списке
-        for (const currentPlot of currentPlots) {
-          const exists = plots.some(p => p.id === currentPlot.id);
-          if (!exists) {
-            await api.delete(`/users/${user.id}/plots/${currentPlot.id}`);
-          }
-        }
-        
-        // Добавляем новые участки
-        for (const plot of plots) {
-          if (!plot.id || plot.id < 1000000) { // Новый участок (временный ID)
-            await api.post(`/users/${user.id}/plots`, {
-              address: plot.address,
-              plotNumber: plot.plotNumber,
-            });
-          }
-        }
       }
 
       onSave();

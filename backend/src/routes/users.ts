@@ -320,7 +320,7 @@ router.put(
         return res.status(404).json({ error: 'Пользователь не найден' });
       }
 
-      const { email, fullName, address, plotNumber, phone, role, deactivationDate, deactivate } = req.body;
+      const { email, fullName, phone, role, deactivationDate, deactivate, plots } = req.body;
       const updateFields: string[] = [];
       const updateParams: any[] = [];
       let paramIndex = 1;
@@ -342,17 +342,7 @@ router.put(
         paramIndex++;
       }
 
-      if (address !== undefined) {
-        updateFields.push(`address = $${paramIndex}`);
-        updateParams.push(address);
-        paramIndex++;
-      }
-
-      if (plotNumber !== undefined) {
-        updateFields.push(`"plotNumber" = $${paramIndex}`);
-        updateParams.push(plotNumber);
-        paramIndex++;
-      }
+      // Участки обрабатываются отдельно, не обновляем address и plotNumber в таблице users
 
       if (phone !== undefined) {
         updateFields.push(`phone = $${paramIndex}`);
