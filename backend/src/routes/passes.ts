@@ -8,9 +8,9 @@ const router = express.Router();
 // Получить все заявки (для охраны и админа)
 router.get('/all', authenticate, requireRole(['security', 'admin']), async (req: AuthRequest, res: Response) => {
   try {
-    const { date, vehicleType, includeDeleted } = req.query;
+    const { date, vehicleType, includeDeleted, userId, plotNumber } = req.query;
     let query = `
-      SELECT p.*, u."fullName", u."plotNumber", u.phone 
+      SELECT p.*, u."fullName", u.phone, p."plotNumber"
       FROM passes p
       JOIN users u ON p."userId" = u.id
       WHERE 1=1
@@ -31,6 +31,18 @@ router.get('/all', authenticate, requireRole(['security', 'admin']), async (req:
     if (vehicleType) {
       query += ` AND p."vehicleType" = $${paramIndex}`;
       params.push(vehicleType);
+      paramIndex++;
+    }
+
+    if (userId) {
+      query += ` AND p."userId" = $${paramIndex}`;
+      params.push(parseInt(userId as string));
+      paramIndex++;
+    }
+
+    if (plotNumber) {
+      query += ` AND p."plotNumber" ILIKE $${paramIndex}`;
+      params.push(`%${plotNumber}%`);
       paramIndex++;
     }
 

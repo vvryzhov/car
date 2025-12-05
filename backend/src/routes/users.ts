@@ -16,7 +16,7 @@ const router = express.Router();
 // Получить всех пользователей (только для админа)
 router.get('/', authenticate, requireRole(['admin']), async (req: AuthRequest, res: Response) => {
   try {
-    const { email, phone, fullName, plotNumber } = req.query;
+    const { email, phone, fullName, plotNumber, role } = req.query;
     let query = 'SELECT id, email, "fullName", phone, role, "deactivatedAt", "deactivationDate", "createdAt" FROM users WHERE 1=1';
     const params: any[] = [];
     let paramIndex = 1;
@@ -36,6 +36,12 @@ router.get('/', authenticate, requireRole(['admin']), async (req: AuthRequest, r
     if (fullName) {
       query += ` AND "fullName" ILIKE $${paramIndex}`;
       params.push(`%${fullName}%`);
+      paramIndex++;
+    }
+
+    if (role) {
+      query += ` AND role = $${paramIndex}`;
+      params.push(role);
       paramIndex++;
     }
 

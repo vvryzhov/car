@@ -5,6 +5,7 @@ import api from '../services/api';
 import UserModal from '../components/UserModal';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 import Footer from '../components/Footer';
+import { format } from 'date-fns';
 
 interface Plot {
   id: number;
@@ -37,10 +38,20 @@ const AdminDashboard = () => {
   const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [uploadResult, setUploadResult] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<'users' | 'passes'>('users');
   const [filters, setFilters] = useState({
     email: '',
     phone: '',
     fullName: '',
+    plotNumber: '',
+    role: '',
+  });
+  const [passes, setPasses] = useState<any[]>([]);
+  const [passesLoading, setPassesLoading] = useState(false);
+  const [passFilters, setPassFilters] = useState({
+    date: '',
+    vehicleType: '',
+    userId: '',
     plotNumber: '',
   });
 
@@ -55,6 +66,7 @@ const AdminDashboard = () => {
       if (filters.phone) params.append('phone', filters.phone);
       if (filters.fullName) params.append('fullName', filters.fullName);
       if (filters.plotNumber) params.append('plotNumber', filters.plotNumber);
+      if (filters.role) params.append('role', filters.role);
 
       const response = await api.get(`/users?${params.toString()}`);
       setUsers(response.data);
@@ -76,12 +88,54 @@ const AdminDashboard = () => {
   };
 
   const handleClearFilters = () => {
-    setFilters({ email: '', phone: '', fullName: '', plotNumber: '' });
+    setFilters({ email: '', phone: '', fullName: '', plotNumber: '', role: '' });
     setLoading(true);
     setTimeout(() => {
       fetchUsers();
     }, 100);
   };
+
+  const fetchPasses = async () => {
+    try {
+      setPassesLoading(true);
+      const params = new URLSearchParams();
+      if (passFilters.date) params.append('date', passFilters.date);
+      if (passFilters.vehicleType) params.append('vehicleType', passFilters.vehicleType);
+      if (passFilters.userId) params.append('userId', passFilters.userId);
+      if (passFilters.plotNumber) params.append('plotNumber', passFilters.plotNumber);
+
+      const response = await api.get(`/passes/all?${params.toString()}`);
+      setPasses(response.data);
+    } catch (error) {
+      console.error('Ошибка загрузки заявок:', error);
+    } finally {
+      setPassesLoading(false);
+    }
+  };
+
+  const handlePassFilterChange = (field: string, value: string) => {
+    setPassFilters({ ...passFilters, [field]: value });
+  };
+
+  const handlePassFilterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    fetchPasses();
+  };
+
+  const handleClearPassFilters = () => {
+    setPassFilters({ date: '', vehicleType: '', userId: '', plotNumber: '' });
+    fetchPasses();
+  };
+
+  useEffect(() => {
+    if (activeTab === 'passes') {
+      // Загружаем пользователей для фильтра, если они еще не загружены
+      if (users.length === 0) {
+        fetchUsers();
+      }
+      fetchPasses();
+    }
+  }, [activeTab]);
 
   const handleCreateUser = () => {
     setEditingUser(null);
@@ -199,21 +253,41 @@ const AdminDashboard = () => {
       <div className="container">
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
-            <h2>Управление пользователями</h2>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              {selectedUsers.length > 0 && (
-                <button className="btn btn-danger" onClick={handleBulkDelete}>
-                  Удалить выбранных ({selectedUsers.length})
-                </button>
-              )}
-              <button className="btn btn-secondary" onClick={() => setShowBulkUpload(!showBulkUpload)}>
-                {showBulkUpload ? 'Отменить загрузку' : 'Загрузить из CSV'}
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <button
+                className={`btn ${activeTab === 'users' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setActiveTab('users')}
+                style={{ padding: '8px 16px' }}
+              >
+                Пользователи
               </button>
-              <button className="btn btn-primary" onClick={handleCreateUser}>
-                Создать пользователя
+              <button
+                className={`btn ${activeTab === 'passes' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setActiveTab('passes')}
+                style={{ padding: '8px 16px' }}
+              >
+                Заявки
               </button>
             </div>
+            {activeTab === 'users' && (
+              <div style={{ display: 'flex', gap: '10px' }}>
+                {selectedUsers.length > 0 && (
+                  <button className="btn btn-danger" onClick={handleBulkDelete}>
+                    Удалить выбранных ({selectedUsers.length})
+                  </button>
+                )}
+                <button className="btn btn-secondary" onClick={() => setShowBulkUpload(!showBulkUpload)}>
+                  {showBulkUpload ? 'Отменить загрузку' : 'Загрузить из CSV'}
+                </button>
+                <button className="btn btn-primary" onClick={handleCreateUser}>
+                  Создать пользователя
+                </button>
+              </div>
+            )}
           </div>
+
+          {activeTab === 'users' && (
+            <>
 
           {showBulkUpload && (
             <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
@@ -302,6 +376,20 @@ const AdminDashboard = () => {
                   placeholder="Поиск по участку"
                   style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
                 />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Роль</label>
+                <select
+                  value={filters.role}
+                  onChange={(e) => handleFilterChange('role', e.target.value)}
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                >
+                  <option value="">Все роли</option>
+                  <option value="user">Пользователь</option>
+                  <option value="foreman">Прораб</option>
+                  <option value="security">Охрана</option>
+                  <option value="admin">Администратор</option>
+                </select>
               </div>
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
@@ -412,6 +500,128 @@ const AdminDashboard = () => {
                 </tbody>
               </table>
             </div>
+          )}
+            </>
+          )}
+
+          {activeTab === 'passes' && (
+            <>
+              <h2 style={{ marginBottom: '20px' }}>Заявки на пропуск</h2>
+
+              <form onSubmit={handlePassFilterSubmit} style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginBottom: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Дата въезда</label>
+                    <input
+                      type="date"
+                      value={passFilters.date}
+                      onChange={(e) => handlePassFilterChange('date', e.target.value)}
+                      style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Тип транспорта</label>
+                    <select
+                      value={passFilters.vehicleType}
+                      onChange={(e) => handlePassFilterChange('vehicleType', e.target.value)}
+                      style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                    >
+                      <option value="">Все</option>
+                      <option value="грузовой">Грузовой</option>
+                      <option value="легковой">Легковой</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Пользователь</label>
+                    <select
+                      value={passFilters.userId}
+                      onChange={(e) => handlePassFilterChange('userId', e.target.value)}
+                      style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                    >
+                      <option value="">Все пользователи</option>
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.fullName} ({u.email})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Участок</label>
+                    <input
+                      type="text"
+                      value={passFilters.plotNumber}
+                      onChange={(e) => handlePassFilterChange('plotNumber', e.target.value)}
+                      placeholder="Поиск по участку"
+                      style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                    />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button type="submit" className="btn btn-primary" style={{ padding: '8px 16px' }}>
+                    Применить фильтры
+                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={handleClearPassFilters} style={{ padding: '8px 16px' }}>
+                    Очистить
+                  </button>
+                </div>
+              </form>
+
+              {passesLoading ? (
+                <div className="loading">Загрузка...</div>
+              ) : passes.length === 0 ? (
+                <div className="empty-state">
+                  <p>Заявок не найдено</p>
+                </div>
+              ) : (
+                <div className="table-wrapper">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>ФИО</th>
+                        <th>Телефон</th>
+                        <th>Участок</th>
+                        <th>Тип транспорта</th>
+                        <th>Номер авто</th>
+                        <th>Дата въезда</th>
+                        <th>Адрес</th>
+                        <th>Комментарий</th>
+                        <th>Комментарий охраны</th>
+                        <th>Статус</th>
+                        <th>Дата создания</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {passes.map((pass) => (
+                        <tr key={pass.id}>
+                          <td data-label="ФИО">{pass.fullName}</td>
+                          <td data-label="Телефон">{pass.phone}</td>
+                          <td data-label="Участок">{pass.plotNumber || '-'}</td>
+                          <td data-label="Тип транспорта">{pass.vehicleType}</td>
+                          <td data-label="Номер авто">{pass.vehicleNumber}</td>
+                          <td data-label="Дата въезда">
+                            {format(new Date(pass.entryDate), 'dd.MM.yyyy')}
+                          </td>
+                          <td data-label="Адрес">{pass.address}</td>
+                          <td data-label="Комментарий">{pass.comment || '-'}</td>
+                          <td data-label="Комментарий охраны">{pass.securityComment || '-'}</td>
+                          <td data-label="Статус">
+                            <span className={`badge badge-${pass.status}`}>
+                              {pass.status === 'pending' ? 'Ожидает' : 
+                               pass.status === 'activated' ? 'Заехал' : 
+                               'Отклонено'}
+                            </span>
+                          </td>
+                          <td data-label="Дата создания">
+                            {format(new Date(pass.createdAt), 'dd.MM.yyyy HH:mm')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
