@@ -87,6 +87,10 @@ DB_PORT=5432
 
 # Порт backend (можно оставить по умолчанию)
 PORT=3001
+
+# URL фронтенда (для ссылок в письмах, например для восстановления пароля)
+# Замените на ваш домен, например: https://yourdomain.com или http://yourdomain.com:8080
+FRONTEND_URL=http://localhost:8080
 ```
 
 Сохраните файл (Ctrl+O, Enter, Ctrl+X в nano).
