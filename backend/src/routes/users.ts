@@ -147,6 +147,10 @@ router.post('/:id/plots', authenticate, async (req: AuthRequest, res: Response) 
       [userId, address, plotNumber]
     );
 
+    if (!result.rows || result.rows.length === 0) {
+      return res.status(500).json({ error: 'Ошибка создания участка' });
+    }
+
     res.json(result.rows[0]);
   } catch (error: any) {
     if (error.code === '23505') { // Unique violation
@@ -216,7 +220,7 @@ router.post(
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password, fullName, address, plotNumber, phone, role, deactivationDate } = req.body;
+    const { email, password, fullName, phone, role, deactivationDate, plots } = req.body;
 
     try {
       // Валидация пароля
