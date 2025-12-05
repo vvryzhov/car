@@ -214,9 +214,16 @@ const Settings = () => {
               />
             </div>
 
-            <div className="form-group" style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #ddd' }}>
-              <label htmlFor="frontend_url" style={{ fontWeight: 'bold', color: '#333' }}>
-                URL фронтенда (для ссылок в письмах)
+            <div className="form-group" style={{ 
+              marginTop: '25px', 
+              paddingTop: '20px', 
+              borderTop: '2px solid #007bff',
+              backgroundColor: '#f8f9fa',
+              padding: '15px',
+              borderRadius: '6px'
+            }}>
+              <label htmlFor="frontend_url" style={{ fontWeight: 'bold', color: '#007bff', fontSize: '16px', display: 'block', marginBottom: '10px' }}>
+                🌐 URL фронтенда (для ссылок в письмах)
               </label>
               <input
                 type="url"
@@ -224,10 +231,17 @@ const Settings = () => {
                 value={smtpSettings.frontend_url || ''}
                 onChange={(e) => setSmtpSettings({ ...smtpSettings, frontend_url: e.target.value })}
                 placeholder="https://yourdomain.com или http://yourdomain.com:8080"
-                style={{ marginTop: '8px' }}
+                style={{ 
+                  marginTop: '8px',
+                  width: '100%',
+                  padding: '10px',
+                  fontSize: '14px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px'
+                }}
               />
-              <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '8px', lineHeight: '1.5' }}>
-                Этот URL используется для ссылок в письмах (например, для восстановления пароля). 
+              <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '10px', lineHeight: '1.6' }}>
+                <strong>Важно:</strong> Этот URL используется для ссылок в письмах (например, для восстановления пароля). 
                 Укажите полный URL с протоколом (http:// или https://). 
                 Если не указан, будет использоваться значение из переменной окружения FRONTEND_URL.
               </small>
