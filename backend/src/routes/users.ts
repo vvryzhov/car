@@ -164,9 +164,15 @@ router.post('/:id/plots', authenticate, async (req: AuthRequest, res: Response) 
       return res.status(403).json({ error: 'Доступ запрещен' });
     }
 
-    // Security и admin не могут добавлять участки (даже себе)
-    if (req.user!.role === 'security' || req.user!.role === 'admin') {
-      return res.status(403).json({ error: 'Участки недоступны для вашей роли' });
+    // Только администратор может добавлять участки
+    if (req.user!.role !== 'admin') {
+      return res.status(403).json({ error: 'Только администратор может добавлять участки' });
+    }
+
+    // Security и admin (редактируемые пользователи) не могут иметь участки
+    const targetUser = await dbGet('SELECT role FROM users WHERE id = $1', [userId]) as any;
+    if (targetUser && (targetUser.role === 'security' || targetUser.role === 'admin')) {
+      return res.status(403).json({ error: 'Участки недоступны для этой роли' });
     }
 
     const { address, plotNumber } = req.body;
@@ -205,9 +211,9 @@ router.delete('/:id/plots/:plotId', authenticate, async (req: AuthRequest, res: 
       return res.status(403).json({ error: 'Доступ запрещен' });
     }
 
-    // Security и admin не могут удалять участки (даже себе)
-    if (req.user!.role === 'security' || req.user!.role === 'admin') {
-      return res.status(403).json({ error: 'Участки недоступны для вашей роли' });
+    // Только администратор может удалять участки
+    if (req.user!.role !== 'admin') {
+      return res.status(403).json({ error: 'Только администратор может удалять участки' });
     }
 
     // Проверяем, что участок принадлежит пользователю
