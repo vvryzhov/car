@@ -220,7 +220,16 @@ router.put(
         paramIndex++;
       }
 
-      if (deactivationDate !== undefined) {
+      // Всегда обновляем deactivationDate: если роль прораб - устанавливаем значение, иначе null
+      if (role === 'foreman' && deactivationDate !== undefined) {
+        updateFields.push(`"deactivationDate" = $${paramIndex}`);
+        updateParams.push(deactivationDate || null);
+        paramIndex++;
+      } else if (role !== undefined && role !== 'foreman') {
+        // Если меняем роль на не-прораб, очищаем deactivationDate
+        updateFields.push(`"deactivationDate" = NULL`);
+      } else if (deactivationDate !== undefined) {
+        // Если явно передано значение (включая null)
         updateFields.push(`"deactivationDate" = $${paramIndex}`);
         updateParams.push(deactivationDate || null);
         paramIndex++;

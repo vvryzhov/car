@@ -71,7 +71,8 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
         };
         if (role === 'foreman') {
           // Отправляем null если дата не указана или пустая
-          data.deactivationDate = (deactivationDate && deactivationDate.trim() !== '') ? deactivationDate : null;
+          const dateValue = deactivationDate?.trim();
+          data.deactivationDate = (dateValue && dateValue !== '') ? dateValue : null;
         }
         await api.post('/users', data);
       } else {
@@ -84,13 +85,13 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
           phone: phone.replace(/\D/g, ''), // Отправляем только цифры
           role,
         };
-        // Если роль прораб (текущая или новая), отправляем дату деактивации
-        if (role === 'foreman' || user.role === 'foreman') {
+        // Если роль прораб, отправляем дату деактивации
+        if (role === 'foreman') {
           // Отправляем null если дата не указана или пустая
-          data.deactivationDate = (deactivationDate && deactivationDate.trim() !== '') ? deactivationDate : null;
+          const dateValue = deactivationDate?.trim();
+          data.deactivationDate = (dateValue && dateValue !== '') ? dateValue : null;
         } else {
-          // Если роль не прораб, не отправляем deactivationDate вообще
-          // или отправляем null чтобы очистить существующую дату
+          // Если роль не прораб, отправляем null чтобы очистить существующую дату
           data.deactivationDate = null;
         }
         data.deactivate = deactivate;
@@ -192,7 +193,13 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
             <select
               id="role"
               value={role}
-              onChange={(e) => setRole(e.target.value)}
+              onChange={(e) => {
+                setRole(e.target.value);
+                // Если меняем роль с прораба на другую, очищаем дату деактивации
+                if (e.target.value !== 'foreman') {
+                  setDeactivationDate('');
+                }
+              }}
               required
             >
               <option value="user">Пользователь</option>
@@ -202,7 +209,7 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
             </select>
           </div>
 
-          {(role === 'foreman' || (user && user.role === 'foreman')) && (
+          {role === 'foreman' && (
             <div className="form-group">
               <label htmlFor="deactivationDate">Дата деактивации аккаунта</label>
               <input
