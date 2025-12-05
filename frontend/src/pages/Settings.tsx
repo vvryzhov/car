@@ -37,7 +37,7 @@ const Settings = () => {
         password: response.data.password || '',
         from_email: response.data.from_email || '',
         from_name: response.data.from_name || '',
-        frontend_url: response.data.frontend_url || process.env.FRONTEND_URL || 'http://localhost:8080',
+        frontend_url: response.data.frontend_url || '',
       });
     } catch (error) {
       console.error('Ошибка загрузки настроек:', error);

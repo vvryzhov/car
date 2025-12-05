@@ -82,7 +82,12 @@ const Dashboard = () => {
           <h1>Личный кабинет</h1>
           <div className="header-actions">
             <span className="user-info">
-              {user?.fullName} ({user?.plotNumber})
+              {user?.fullName}
+              {user?.plots && user.plots.length > 0 && (
+                <span style={{ color: '#666', fontSize: '0.9em', marginLeft: '8px' }}>
+                  ({user.plots.length} {user.plots.length === 1 ? 'участок' : 'участков'})
+                </span>
+              )}
             </span>
             <button className="btn btn-secondary" onClick={() => setShowProfileModal(true)}>
               Профиль
