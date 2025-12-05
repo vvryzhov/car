@@ -82,10 +82,12 @@ router.post(
     body('plotNumber').notEmpty().withMessage('Номер участка обязателен'),
     body('phone').notEmpty().withMessage('Телефон обязателен'),
     body('role').isIn(['user', 'security', 'admin', 'foreman']).withMessage('Роль должна быть user, security, admin или foreman'),
-    body('deactivationDate').optional().custom((value) => {
-      if (value === null || value === undefined || value === '') {
+    body('deactivationDate').optional({ nullable: true, checkFalsy: true }).custom((value) => {
+      // Разрешаем null, undefined, пустую строку
+      if (value === null || value === undefined || value === '' || value === 'null') {
         return true;
       }
+      // Если значение есть, проверяем формат даты
       if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
         return true;
       }
@@ -147,10 +149,12 @@ router.put(
     body('plotNumber').optional().notEmpty().withMessage('Номер участка не может быть пустым'),
     body('phone').optional().notEmpty().withMessage('Телефон не может быть пустым'),
     body('role').optional().isIn(['user', 'security', 'admin', 'foreman']).withMessage('Некорректная роль'),
-    body('deactivationDate').optional().custom((value) => {
-      if (value === null || value === undefined || value === '') {
+    body('deactivationDate').optional({ nullable: true, checkFalsy: true }).custom((value) => {
+      // Разрешаем null, undefined, пустую строку
+      if (value === null || value === undefined || value === '' || value === 'null') {
         return true;
       }
+      // Если значение есть, проверяем формат даты
       if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
         return true;
       }

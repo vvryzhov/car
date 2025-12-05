@@ -70,7 +70,8 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
           role,
         };
         if (role === 'foreman') {
-          data.deactivationDate = deactivationDate || null;
+          // Отправляем null если дата не указана или пустая
+          data.deactivationDate = (deactivationDate && deactivationDate.trim() !== '') ? deactivationDate : null;
         }
         await api.post('/users', data);
       } else {
@@ -83,8 +84,14 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
           phone: phone.replace(/\D/g, ''), // Отправляем только цифры
           role,
         };
+        // Если роль прораб (текущая или новая), отправляем дату деактивации
         if (role === 'foreman' || user.role === 'foreman') {
-          data.deactivationDate = deactivationDate || null;
+          // Отправляем null если дата не указана или пустая
+          data.deactivationDate = (deactivationDate && deactivationDate.trim() !== '') ? deactivationDate : null;
+        } else {
+          // Если роль не прораб, не отправляем deactivationDate вообще
+          // или отправляем null чтобы очистить существующую дату
+          data.deactivationDate = null;
         }
         data.deactivate = deactivate;
         await api.put(`/users/${user.id}`, data);
