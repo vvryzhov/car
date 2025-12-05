@@ -55,7 +55,6 @@ const RequestPasswordReset = () => {
             </button>
           </div>
         </div>
-        <Footer />
       </div>
     );
   }
