@@ -24,11 +24,26 @@ interface PassModalProps {
 }
 
 const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
-  const [vehicleType, setVehicleType] = useState('легковой');
-  const [vehicleNumber, setVehicleNumber] = useState('');
-  const [entryDate, setEntryDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [address, setAddress] = useState(user.address);
-  const [comment, setComment] = useState('');
+  // Правильно инициализируем entryDate: если есть pass, используем его дату, иначе текущую дату
+  const getInitialEntryDate = () => {
+    if (pass && pass.entryDate) {
+      // Если дата в формате YYYY-MM-DD, используем как есть
+      // Если в другом формате, конвертируем
+      const dateStr = pass.entryDate;
+      if (dateStr.includes('T')) {
+        // Если есть время, берем только дату
+        return dateStr.split('T')[0];
+      }
+      return dateStr;
+    }
+    return format(new Date(), 'yyyy-MM-dd');
+  };
+
+  const [vehicleType, setVehicleType] = useState(pass?.vehicleType || 'легковой');
+  const [vehicleNumber, setVehicleNumber] = useState(pass?.vehicleNumber || '');
+  const [entryDate, setEntryDate] = useState(getInitialEntryDate());
+  const [address, setAddress] = useState(pass?.address || user.address);
+  const [comment, setComment] = useState(pass?.comment || '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -38,7 +53,10 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
       setVehicleNumber(pass.vehicleNumber);
       // Сохраняем дату въезда при редактировании
       if (pass.entryDate) {
-        setEntryDate(pass.entryDate);
+        const dateStr = pass.entryDate;
+        // Обрабатываем разные форматы даты
+        const formattedDate = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+        setEntryDate(formattedDate);
       }
       setAddress(pass.address);
       setComment(pass.comment || '');

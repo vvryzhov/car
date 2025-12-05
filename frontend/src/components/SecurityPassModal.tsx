@@ -22,9 +22,21 @@ interface SecurityPassModalProps {
 }
 
 const SecurityPassModal = ({ pass, onClose, onSave }: SecurityPassModalProps) => {
+  // Функция для правильного форматирования даты
+  const formatDateForInput = (dateStr: string) => {
+    if (!dateStr) return '';
+    // Если дата в формате YYYY-MM-DD, используем как есть
+    // Если в другом формате, конвертируем
+    if (dateStr.includes('T')) {
+      // Если есть время, берем только дату
+      return dateStr.split('T')[0];
+    }
+    return dateStr;
+  };
+
   const [vehicleType, setVehicleType] = useState(pass.vehicleType);
   const [vehicleNumber, setVehicleNumber] = useState(pass.vehicleNumber);
-  const [entryDate, setEntryDate] = useState(pass.entryDate);
+  const [entryDate, setEntryDate] = useState(formatDateForInput(pass.entryDate));
   const [address, setAddress] = useState(pass.address);
   const [fullName, setFullName] = useState(pass.fullName);
   const [plotNumber, setPlotNumber] = useState(pass.plotNumber);
@@ -37,7 +49,8 @@ const SecurityPassModal = ({ pass, onClose, onSave }: SecurityPassModalProps) =>
   useEffect(() => {
     setVehicleType(pass.vehicleType);
     setVehicleNumber(pass.vehicleNumber);
-    setEntryDate(pass.entryDate);
+    // Правильно форматируем дату при обновлении
+    setEntryDate(formatDateForInput(pass.entryDate));
     setAddress(pass.address);
     setFullName(pass.fullName);
     setPlotNumber(pass.plotNumber);
