@@ -1,14 +1,19 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import api from '../services/api';
 
+interface Plot {
+  id: number;
+  address: string;
+  plotNumber: string;
+}
+
 interface User {
   id: number;
   email: string;
   fullName: string;
-  address: string;
-  plotNumber: string;
   phone: string;
   role: 'user' | 'security' | 'admin' | 'foreman';
+  plots?: Plot[];
 }
 
 interface AuthContextType {

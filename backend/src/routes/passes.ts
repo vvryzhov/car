@@ -94,6 +94,7 @@ router.post(
     body('vehicleNumber').notEmpty().withMessage('Номер авто обязателен'),
     body('entryDate').notEmpty().withMessage('Дата въезда обязательна'),
     body('address').notEmpty().withMessage('Адрес обязателен'),
+    body('plotNumber').notEmpty().withMessage('Номер участка обязателен'),
   ],
   async (req: AuthRequest, res: Response) => {
     const errors = validationResult(req);
@@ -101,12 +102,12 @@ router.post(
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { vehicleType, vehicleNumber, entryDate, address, comment } = req.body;
+    const { vehicleType, vehicleNumber, entryDate, address, plotNumber, comment } = req.body;
 
     try {
       const result = await dbRun(
-        'INSERT INTO passes ("userId", "vehicleType", "vehicleNumber", "entryDate", address, comment) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-        [req.user!.id, vehicleType, vehicleNumber, entryDate, address, comment || null]
+        'INSERT INTO passes ("userId", "vehicleType", "vehicleNumber", "entryDate", address, "plotNumber", comment) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
+        [req.user!.id, vehicleType, vehicleNumber, entryDate, address, plotNumber, comment || null]
       );
 
       const pass = await dbGet('SELECT * FROM passes WHERE id = $1', [result.rows?.[0]?.id]) as any;
@@ -165,12 +166,13 @@ router.put(
 
       // Обновляем пропуск
       await dbRun(
-        'UPDATE passes SET "vehicleType" = $1, "vehicleNumber" = $2, "entryDate" = $3, address = $4, comment = $5, "securityComment" = $6, status = $7 WHERE id = $8',
+        'UPDATE passes SET "vehicleType" = $1, "vehicleNumber" = $2, "entryDate" = $3, address = $4, "plotNumber" = $5, comment = $6, "securityComment" = $7, status = $8 WHERE id = $9',
         [
           vehicleType !== undefined ? vehicleType : pass.vehicleType,
           vehicleNumber !== undefined ? vehicleNumber : pass.vehicleNumber,
           entryDate !== undefined ? entryDate : pass.entryDate,
           address !== undefined ? address : pass.address,
+          plotNumber !== undefined ? plotNumber : pass.plotNumber,
           updateComment,
           securityComment !== undefined ? securityComment : pass.securityComment,
           status !== undefined ? status : pass.status,

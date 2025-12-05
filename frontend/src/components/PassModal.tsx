@@ -2,18 +2,25 @@ import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { format } from 'date-fns';
 
+interface Plot {
+  id: number;
+  address: string;
+  plotNumber: string;
+}
+
 interface Pass {
   id?: number;
   vehicleType: string;
   vehicleNumber: string;
   entryDate: string;
   address: string;
+  plotNumber?: string;
   comment: string | null;
 }
 
 interface User {
   id: number;
-  address: string;
+  plots?: Plot[];
 }
 
 interface PassModalProps {
@@ -42,7 +49,11 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
   const [vehicleType, setVehicleType] = useState(pass?.vehicleType || 'легковой');
   const [vehicleNumber, setVehicleNumber] = useState(pass?.vehicleNumber || '');
   const [entryDate, setEntryDate] = useState(getInitialEntryDate());
-  const [address, setAddress] = useState(pass?.address || user.address);
+  const [selectedPlotId, setSelectedPlotId] = useState<number | null>(
+    pass ? (user.plots?.find(p => p.address === pass.address && p.plotNumber === pass.plotNumber)?.id || null) : null
+  );
+  const [address, setAddress] = useState(pass?.address || '');
+  const [plotNumber, setPlotNumber] = useState(pass?.plotNumber || '');
   const [comment, setComment] = useState(pass?.comment || '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -59,14 +70,34 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
         setEntryDate(formattedDate);
       }
       setAddress(pass.address);
+      setPlotNumber(pass.plotNumber || '');
       setComment(pass.comment || '');
+      // Находим выбранный участок
+      const plot = user.plots?.find(p => p.address === pass.address && p.plotNumber === pass.plotNumber);
+      setSelectedPlotId(plot?.id || null);
     } else {
-      // При создании новой заявки адрес подтягивается из профиля
-      setAddress(user.address);
+      // При создании новой заявки выбираем первый участок, если есть
+      if (user.plots && user.plots.length > 0) {
+        const firstPlot = user.plots[0];
+        setSelectedPlotId(firstPlot.id);
+        setAddress(firstPlot.address);
+        setPlotNumber(firstPlot.plotNumber);
+      }
       // Сбрасываем дату только при создании новой заявки
       setEntryDate(format(new Date(), 'yyyy-MM-dd'));
     }
   }, [pass, user]);
+
+  // Обновляем адрес и номер участка при выборе участка
+  useEffect(() => {
+    if (selectedPlotId && user.plots) {
+      const plot = user.plots.find(p => p.id === selectedPlotId);
+      if (plot) {
+        setAddress(plot.address);
+        setPlotNumber(plot.plotNumber);
+      }
+    }
+  }, [selectedPlotId, user.plots]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,6 +110,7 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
         vehicleNumber,
         entryDate,
         address,
+        plotNumber,
         comment: comment || null,
       };
 
@@ -142,14 +174,32 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
           </div>
 
           <div className="form-group">
-            <label htmlFor="address">Адрес</label>
-            <input
-              type="text"
-              id="address"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              required
-            />
+            <label htmlFor="plot">Участок и адрес</label>
+            {user.plots && user.plots.length > 0 ? (
+              <select
+                id="plot"
+                value={selectedPlotId || ''}
+                onChange={(e) => setSelectedPlotId(parseInt(e.target.value))}
+                required
+              >
+                <option value="">Выберите участок</option>
+                {user.plots.map((plot) => (
+                  <option key={plot.id} value={plot.id}>
+                    {plot.plotNumber} - {plot.address}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div style={{ color: '#dc3545', padding: '10px', backgroundColor: '#f8d7da', borderRadius: '4px' }}>
+                У вас нет добавленных участков. Пожалуйста, добавьте участок в профиле.
+              </div>
+            )}
+            {selectedPlotId && (
+              <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                <div><strong>Адрес:</strong> {address}</div>
+                <div><strong>Номер участка:</strong> {plotNumber}</div>
+              </div>
+            )}
           </div>
 
           <div className="form-group">

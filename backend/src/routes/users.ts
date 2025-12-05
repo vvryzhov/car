@@ -17,7 +17,7 @@ const router = express.Router();
 router.get('/', authenticate, requireRole(['admin']), async (req: AuthRequest, res: Response) => {
   try {
     const { email, phone, fullName, plotNumber } = req.query;
-    let query = 'SELECT id, email, "fullName", address, "plotNumber", phone, role, "deactivatedAt", "deactivationDate", "createdAt" FROM users WHERE 1=1';
+    let query = 'SELECT id, email, "fullName", phone, role, "deactivatedAt", "deactivationDate", "createdAt" FROM users WHERE 1=1';
     const params: any[] = [];
     let paramIndex = 1;
 
@@ -39,16 +39,40 @@ router.get('/', authenticate, requireRole(['admin']), async (req: AuthRequest, r
       paramIndex++;
     }
 
-    if (plotNumber) {
-      query += ` AND "plotNumber" ILIKE $${paramIndex}`;
-      params.push(`%${plotNumber}%`);
-      paramIndex++;
-    }
-
     query += ' ORDER BY "createdAt" DESC';
 
     const users = await dbAll(query, params) as any[];
-    res.json(users);
+
+    // Фильтрация по номеру участка, если указан
+    let filteredUsers = users;
+    if (plotNumber) {
+      const plotNumberLower = `%${plotNumber}%`.toLowerCase();
+      filteredUsers = [];
+      for (const user of users) {
+        const userPlots = await dbAll(
+          'SELECT id, address, "plotNumber" FROM user_plots WHERE "userId" = $1',
+          [user.id]
+        ) as any[];
+        const hasMatchingPlot = userPlots.some(plot => 
+          plot.plotNumber.toLowerCase().includes(plotNumberLower.replace(/%/g, ''))
+        );
+        if (hasMatchingPlot) {
+          filteredUsers.push({ ...user, plots: userPlots });
+        }
+      }
+    } else {
+      // Получаем участки для всех пользователей
+      for (const user of users) {
+        const userPlots = await dbAll(
+          'SELECT id, address, "plotNumber" FROM user_plots WHERE "userId" = $1 ORDER BY "createdAt"',
+          [user.id]
+        ) as any[];
+        user.plots = userPlots || [];
+      }
+      filteredUsers = users;
+    }
+
+    res.json(filteredUsers);
   } catch (error) {
     console.error('Ошибка получения пользователей:', error);
     res.status(500).json({ error: 'Ошибка сервера' });
@@ -59,7 +83,7 @@ router.get('/', authenticate, requireRole(['admin']), async (req: AuthRequest, r
 router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const user = await dbGet(
-      'SELECT id, email, "fullName", address, "plotNumber", phone, role FROM users WHERE id = $1',
+      'SELECT id, email, "fullName", phone, role FROM users WHERE id = $1',
       [req.user!.id]
     ) as any;
 
@@ -67,9 +91,98 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
-    res.json(user);
+    // Получаем участки пользователя
+    const plots = await dbAll(
+      'SELECT id, address, "plotNumber" FROM user_plots WHERE "userId" = $1 ORDER BY "createdAt"',
+      [req.user!.id]
+    ) as any[];
+
+    res.json({ ...user, plots: plots || [] });
   } catch (error) {
     console.error('Ошибка получения пользователя:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Получить участки пользователя
+router.get('/:id/plots', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = parseInt(req.params.id);
+    
+    // Проверяем права доступа
+    if (req.user!.role !== 'admin' && req.user!.id !== userId) {
+      return res.status(403).json({ error: 'Доступ запрещен' });
+    }
+
+    const plots = await dbAll(
+      'SELECT id, address, "plotNumber" FROM user_plots WHERE "userId" = $1 ORDER BY "createdAt"',
+      [userId]
+    ) as any[];
+
+    res.json(plots);
+  } catch (error) {
+    console.error('Ошибка получения участков:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Добавить участок пользователю
+router.post('/:id/plots', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = parseInt(req.params.id);
+    
+    // Проверяем права доступа
+    if (req.user!.role !== 'admin' && req.user!.id !== userId) {
+      return res.status(403).json({ error: 'Доступ запрещен' });
+    }
+
+    const { address, plotNumber } = req.body;
+
+    if (!address || !plotNumber) {
+      return res.status(400).json({ error: 'Адрес и номер участка обязательны' });
+    }
+
+    const result = await dbRun(
+      'INSERT INTO user_plots ("userId", address, "plotNumber") VALUES ($1, $2, $3) RETURNING id, address, "plotNumber"',
+      [userId, address, plotNumber]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error: any) {
+    if (error.code === '23505') { // Unique violation
+      return res.status(400).json({ error: 'Такой участок уже существует' });
+    }
+    console.error('Ошибка добавления участка:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Удалить участок пользователя
+router.delete('/:id/plots/:plotId', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const plotId = parseInt(req.params.plotId);
+    
+    // Проверяем права доступа
+    if (req.user!.role !== 'admin' && req.user!.id !== userId) {
+      return res.status(403).json({ error: 'Доступ запрещен' });
+    }
+
+    // Проверяем, что участок принадлежит пользователю
+    const plot = await dbGet(
+      'SELECT id FROM user_plots WHERE id = $1 AND "userId" = $2',
+      [plotId, userId]
+    );
+
+    if (!plot) {
+      return res.status(404).json({ error: 'Участок не найден' });
+    }
+
+    await dbRun('DELETE FROM user_plots WHERE id = $1', [plotId]);
+
+    res.json({ message: 'Участок удален' });
+  } catch (error) {
+    console.error('Ошибка удаления участка:', error);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
@@ -83,8 +196,6 @@ router.post(
     body('email').isEmail().withMessage('Некорректный email'),
     body('password').isLength({ min: 6 }).withMessage('Пароль должен быть не менее 6 символов'),
     body('fullName').notEmpty().withMessage('ФИО обязательно'),
-    body('address').notEmpty().withMessage('Адрес обязателен'),
-    body('plotNumber').notEmpty().withMessage('Номер участка обязателен'),
     body('phone').notEmpty().withMessage('Телефон обязателен'),
     body('role').isIn(['user', 'security', 'admin', 'foreman']).withMessage('Роль должна быть user, security, admin или foreman'),
     body('deactivationDate').optional({ nullable: true, checkFalsy: true }).custom((value) => {
@@ -121,19 +232,45 @@ router.post(
 
       const hashedPassword = await bcrypt.hash(password, 10);
 
+      // Создаем пользователя без address и plotNumber (они теперь в отдельной таблице)
       const result = await dbRun(
         'INSERT INTO users (email, password, "fullName", address, "plotNumber", phone, role, "deactivationDate") VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
-        [email, hashedPassword, fullName, address, plotNumber, phone, role || 'user', deactivationDate || null]
+        [email, hashedPassword, fullName, '', '', phone, role || 'user', deactivationDate || null]
       );
 
+      const userId = result.rows?.[0]?.id;
+
+      // Добавляем участки, если они переданы
+      const plotsArray = Array.isArray(plots) ? plots : (plots ? [plots] : []);
+      if (plotsArray.length > 0) {
+        for (const plot of plotsArray) {
+          if (plot.address && plot.plotNumber) {
+            try {
+              await dbRun(
+                'INSERT INTO user_plots ("userId", address, "plotNumber") VALUES ($1, $2, $3)',
+                [userId, plot.address, plot.plotNumber]
+              );
+            } catch (error) {
+              // Игнорируем ошибки дубликатов
+              console.log('Пропуск дубликата участка для пользователя', userId);
+            }
+          }
+        }
+      }
+
+      // Получаем созданные участки
+      const userPlots = await dbAll(
+        'SELECT id, address, "plotNumber" FROM user_plots WHERE "userId" = $1',
+        [userId]
+      ) as any[];
+
       res.status(201).json({
-        id: result.rows?.[0]?.id,
+        id: userId,
         email,
         fullName,
-        address,
-        plotNumber,
         phone,
         role: role || 'user',
+        plots: userPlots || [],
       });
     } catch (error) {
       console.error('Ошибка создания пользователя:', error);

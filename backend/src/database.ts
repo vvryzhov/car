@@ -100,6 +100,7 @@ export const initDatabase = async () => {
         "vehicleNumber" VARCHAR(50) NOT NULL,
         "entryDate" DATE NOT NULL,
         address VARCHAR(255) NOT NULL,
+        "plotNumber" VARCHAR(50),
         comment TEXT,
         "securityComment" TEXT,
         status VARCHAR(50) DEFAULT 'pending',
@@ -108,6 +109,16 @@ export const initDatabase = async () => {
         FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE
       )
     `);
+
+    // Добавляем поле plotNumber, если его нет
+    const plotNumberCheck = await dbGet(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name='passes' AND column_name='plotNumber'
+    `);
+    if (!plotNumberCheck) {
+      await dbRun('ALTER TABLE passes ADD COLUMN "plotNumber" VARCHAR(50)');
+    }
 
     // Добавляем поле deletedAt, если его нет
     const deletedAtCheck = await dbGet(`
@@ -162,6 +173,41 @@ export const initDatabase = async () => {
         "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Таблица участков пользователей (адрес и номер участка - единое целое)
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS user_plots (
+        id SERIAL PRIMARY KEY,
+        "userId" INTEGER NOT NULL,
+        address VARCHAR(255) NOT NULL,
+        "plotNumber" VARCHAR(50) NOT NULL,
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE("userId", address, "plotNumber")
+      )
+    `);
+
+    // Миграция: переносим существующие данные из users в user_plots
+    const userPlotsCheck = await dbGet(`
+      SELECT COUNT(*) as count FROM user_plots
+    `);
+    
+    if (userPlotsCheck && parseInt(userPlotsCheck.count) === 0) {
+      // Переносим существующие данные
+      const users = await dbAll('SELECT id, address, "plotNumber" FROM users WHERE address IS NOT NULL AND "plotNumber" IS NOT NULL');
+      for (const user of users) {
+        try {
+          await dbRun(
+            'INSERT INTO user_plots ("userId", address, "plotNumber") VALUES ($1, $2, $3)',
+            [user.id, user.address, user.plotNumber]
+          );
+        } catch (error) {
+          // Игнорируем ошибки дубликатов
+          console.log('Пропуск дубликата для пользователя', user.id);
+        }
+      }
+      console.log('Миграция данных в user_plots завершена');
+    }
 
     // Создаем администратора по умолчанию (email: admin@admin.com, password: admin123)
     const adminExists = await dbGet('SELECT id FROM users WHERE email = $1', ['admin@admin.com']);
