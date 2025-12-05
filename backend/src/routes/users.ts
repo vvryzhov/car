@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { body, validationResult } from 'express-validator';
 import { dbGet, dbRun, dbAll } from '../database';
 import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
+import { sendPasswordResetEmail } from '../services/email';
 
 const router = express.Router();
 
@@ -330,7 +331,6 @@ router.post(
 
       // Отправляем email
       const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:8080'}/reset-password?token=${token}`;
-      const { sendPasswordResetEmail } = require('../services/email');
       await sendPasswordResetEmail(email, token, resetUrl);
 
       res.json({ message: 'Если пользователь с таким email существует, письмо отправлено' });

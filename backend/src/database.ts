@@ -105,7 +105,7 @@ export const initDatabase = async () => {
         host VARCHAR(255),
         port INTEGER,
         secure BOOLEAN DEFAULT false,
-        user VARCHAR(255),
+        "user" VARCHAR(255),
         password VARCHAR(255),
         from_email VARCHAR(255),
         from_name VARCHAR(255),
