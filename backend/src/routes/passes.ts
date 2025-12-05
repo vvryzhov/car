@@ -161,8 +161,10 @@ router.put(
         plotNumber
       } = req.body;
 
-      // Если это охрана, не позволяем менять комментарий пользователя
+      // Если это охрана, не позволяем менять комментарий пользователя и участок
       const updateComment = req.user!.role === 'admin' ? (comment !== undefined ? comment : pass.comment) : pass.comment;
+      // Охрана не может изменять участок
+      const updatePlotNumber = req.user!.role === 'security' ? pass.plotNumber : (plotNumber !== undefined ? plotNumber : pass.plotNumber);
 
       // Обновляем пропуск
       await dbRun(
@@ -172,7 +174,7 @@ router.put(
           vehicleNumber !== undefined ? vehicleNumber : pass.vehicleNumber,
           entryDate !== undefined ? entryDate : pass.entryDate,
           address !== undefined ? address : pass.address,
-          plotNumber !== undefined ? plotNumber : pass.plotNumber,
+          updatePlotNumber,
           updateComment,
           securityComment !== undefined ? securityComment : pass.securityComment,
           status !== undefined ? status : pass.status,
@@ -180,30 +182,15 @@ router.put(
         ]
       );
 
-      // Если охрана или админ обновляют ФИО или участок, обновляем данные пользователя
-      if ((req.user!.role === 'admin' || req.user!.role === 'security') && (fullName || plotNumber)) {
+      // Если админ обновляет ФИО, обновляем данные пользователя
+      // Охрана не может обновлять участки
+      if (req.user!.role === 'admin' && fullName) {
         const user = await dbGet('SELECT * FROM users WHERE id = $1', [pass.userId]) as any;
         if (user) {
-          const updateFields: string[] = [];
-          const updateParams: any[] = [];
-          let paramIndex = 1;
-          
-          if (fullName !== undefined) {
-            updateFields.push(`"fullName" = $${paramIndex}`);
-            updateParams.push(fullName);
-            paramIndex++;
-          }
-          if (plotNumber !== undefined) {
-            updateFields.push(`"plotNumber" = $${paramIndex}`);
-            updateParams.push(plotNumber);
-            paramIndex++;
-          }
-          
-          if (updateFields.length > 0) {
-            updateParams.push(pass.userId);
-            const updateQuery = `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${paramIndex}`;
-            await dbRun(updateQuery, updateParams);
-          }
+          await dbRun(
+            'UPDATE users SET "fullName" = $1 WHERE id = $2',
+            [fullName, pass.userId]
+          );
         }
       }
 

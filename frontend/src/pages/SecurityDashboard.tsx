@@ -140,7 +140,6 @@ const SecurityDashboard = () => {
                 <thead>
                   <tr>
                     <th>ФИО</th>
-                    <th>Участок</th>
                     <th>Телефон</th>
                     <th>Тип транспорта</th>
                     <th>Номер авто</th>
@@ -156,7 +155,6 @@ const SecurityDashboard = () => {
                 {passes.map((pass) => (
                   <tr key={pass.id}>
                     <td data-label="ФИО">{pass.fullName}</td>
-                    <td data-label="Участок">{pass.plotNumber}</td>
                     <td data-label="Телефон">{pass.phone}</td>
                     <td data-label="Тип транспорта">{pass.vehicleType}</td>
                     <td data-label="Номер авто">{pass.vehicleNumber}</td>

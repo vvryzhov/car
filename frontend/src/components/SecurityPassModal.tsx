@@ -39,7 +39,6 @@ const SecurityPassModal = ({ pass, onClose, onSave }: SecurityPassModalProps) =>
   const [entryDate, setEntryDate] = useState(formatDateForInput(pass.entryDate));
   const [address, setAddress] = useState(pass.address);
   const [fullName, setFullName] = useState(pass.fullName);
-  const [plotNumber, setPlotNumber] = useState(pass.plotNumber);
   const [comment, setComment] = useState(pass.comment || '');
   const [securityComment, setSecurityComment] = useState(pass.securityComment || '');
   const [status, setStatus] = useState(pass.status);
@@ -53,7 +52,6 @@ const SecurityPassModal = ({ pass, onClose, onSave }: SecurityPassModalProps) =>
     setEntryDate(formatDateForInput(pass.entryDate));
     setAddress(pass.address);
     setFullName(pass.fullName);
-    setPlotNumber(pass.plotNumber);
     setComment(pass.comment || '');
     setSecurityComment(pass.securityComment || '');
     setStatus(pass.status);
@@ -71,7 +69,7 @@ const SecurityPassModal = ({ pass, onClose, onSave }: SecurityPassModalProps) =>
         entryDate,
         address,
         fullName,
-        plotNumber,
+        // Не отправляем plotNumber - охрана не должна его редактировать
         // Не отправляем comment - охрана не может его менять
         securityComment: securityComment || null,
         status,
@@ -116,17 +114,6 @@ const SecurityPassModal = ({ pass, onClose, onSave }: SecurityPassModalProps) =>
               id="fullName"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="plotNumber">Участок</label>
-            <input
-              type="text"
-              id="plotNumber"
-              value={plotNumber}
-              onChange={(e) => setPlotNumber(e.target.value)}
               required
             />
           </div>
