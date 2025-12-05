@@ -828,72 +828,127 @@ router.post(
         errors: [] as Array<{ row: number; email: string; error: string }>,
       };
 
+      // Группируем записи по email для обработки множественных участков
+      const usersMap = new Map<string, {
+        email: string;
+        fullName: string;
+        phone: string;
+        plots: Array<{ plotNumber: string; address: string; rowNumber: number }>;
+        firstRowNumber: number;
+      }>();
+
       // Ожидаемые колонки: email, fullName, plotNumber, phone (опционально)
       for (let i = 0; i < records.length; i++) {
         const record = records[i];
         const rowNumber = i + 2; // +2 потому что первая строка - заголовки, и индексация с 0
 
+        // Валидация обязательных полей
+        if (!record.email || !record.fullName || !record.plotNumber) {
+          results.errors.push({
+            row: rowNumber,
+            email: record.email || 'N/A',
+            error: 'Отсутствуют обязательные поля (email, fullName, plotNumber)',
+          });
+          continue;
+        }
+
+        // Валидация email
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(record.email)) {
+          results.errors.push({
+            row: rowNumber,
+            email: record.email,
+            error: 'Некорректный email',
+          });
+          continue;
+        }
+
+        const email = record.email.toLowerCase().trim();
+        
+        // Группируем по email
+        if (!usersMap.has(email)) {
+          usersMap.set(email, {
+            email: record.email,
+            fullName: record.fullName.trim(),
+            phone: (record.phone || '').trim(),
+            plots: [],
+            firstRowNumber: rowNumber,
+          });
+        }
+
+        const userData = usersMap.get(email)!;
+        
+        // Добавляем участок (если адрес не указан, используем пустую строку)
+        userData.plots.push({
+          plotNumber: record.plotNumber.trim(),
+          address: '', // Адрес по умолчанию пустой
+          rowNumber: rowNumber,
+        });
+
+        // Если телефон указан в этой строке и не был указан ранее, обновляем
+        if (record.phone && record.phone.trim() && !userData.phone) {
+          userData.phone = record.phone.trim();
+        }
+      }
+
+      // Обрабатываем сгруппированных пользователей
+      for (const [email, userData] of usersMap.entries()) {
         try {
-          // Валидация обязательных полей
-          if (!record.email || !record.fullName || !record.plotNumber) {
-            results.errors.push({
-              row: rowNumber,
-              email: record.email || 'N/A',
-              error: 'Отсутствуют обязательные поля (email, fullName, plotNumber)',
-            });
-            continue;
-          }
-
-          // Валидация email
-          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(record.email)) {
-            results.errors.push({
-              row: rowNumber,
-              email: record.email,
-              error: 'Некорректный email',
-            });
-            continue;
-          }
-
           // Проверка, существует ли пользователь
-          const existingUser = await dbGet('SELECT id FROM users WHERE email = $1', [record.email]);
+          const existingUser = await dbGet('SELECT id FROM users WHERE email = $1', [email]);
           if (existingUser) {
             results.errors.push({
-              row: rowNumber,
-              email: record.email,
+              row: userData.firstRowNumber,
+              email: email,
               error: 'Пользователь с таким email уже существует',
             });
             continue;
           }
 
           // Генерируем временный пароль (пользователь должен будет его сменить)
-          // Пароль: временный пароль с буквами и цифрами
           const tempPassword = 'Temp' + crypto.randomBytes(4).toString('hex') + '123';
           const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
           // Значения по умолчанию
-          const phone = record.phone || '';
+          const phone = userData.phone || '';
           const address = ''; // Адрес по умолчанию пустой
           const role = 'user'; // Роль по умолчанию - пользователь
 
           // Создаем пользователя
-          await dbRun(
-            'INSERT INTO users (email, password, "fullName", address, "plotNumber", phone, role) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          const result = await dbRun(
+            'INSERT INTO users (email, password, "fullName", address, "plotNumber", phone, role) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
             [
-              record.email,
+              email,
               hashedPassword,
-              record.fullName,
+              userData.fullName,
               address,
-              record.plotNumber,
+              userData.plots[0].plotNumber, // Первый участок в основную таблицу (для совместимости)
               phone,
               role,
             ]
           );
 
+          const userId = result.rows?.[0]?.id;
+
+          // Добавляем все участки в таблицу user_plots
+          for (const plot of userData.plots) {
+            try {
+              await dbRun(
+                'INSERT INTO user_plots ("userId", address, "plotNumber") VALUES ($1, $2, $3)',
+                [userId, plot.address, plot.plotNumber]
+              );
+            } catch (error: any) {
+              // Игнорируем ошибки дубликатов участков
+              if (error.code !== '23505') {
+                console.error(`Ошибка добавления участка ${plot.plotNumber} для пользователя ${email}:`, error);
+              }
+            }
+          }
+
           results.success++;
         } catch (error: any) {
           results.errors.push({
-            row: rowNumber,
-            email: record.email || 'N/A',
+            row: userData.firstRowNumber,
+            email: email,
             error: error.message || 'Ошибка создания пользователя',
           });
         }
