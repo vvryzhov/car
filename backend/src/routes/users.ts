@@ -387,12 +387,75 @@ router.put(
         );
       }
 
+      // Обновляем участки, если они переданы
+      if (plots !== undefined && Array.isArray(plots)) {
+        console.log('Обновление участков для пользователя', req.params.id, 'plots:', plots);
+        
+        // Получаем текущие участки
+        const currentPlots = await dbAll(
+          'SELECT id, address, "plotNumber" FROM user_plots WHERE "userId" = $1',
+          [req.params.id]
+        ) as any[];
+
+        console.log('Текущие участки:', currentPlots);
+
+        // Удаляем участки, которых нет в новом списке
+        for (const currentPlot of currentPlots) {
+          const exists = plots.some((p: any) => p.id && p.id === currentPlot.id);
+          if (!exists) {
+            console.log('Удаление участка:', currentPlot.id);
+            await dbRun('DELETE FROM user_plots WHERE id = $1', [currentPlot.id]);
+          }
+        }
+
+        // Добавляем или обновляем участки из нового списка
+        for (const plot of plots) {
+          if (plot.address && plot.plotNumber) {
+            if (plot.id && plot.id > 1000000) {
+              // Существующий участок - проверяем, нужно ли обновить
+              const existingPlot = currentPlots.find(p => p.id === plot.id);
+              if (existingPlot && (existingPlot.address !== plot.address || existingPlot.plotNumber !== plot.plotNumber)) {
+                console.log('Обновление участка:', plot.id, plot.address, plot.plotNumber);
+                await dbRun(
+                  'UPDATE user_plots SET address = $1, "plotNumber" = $2 WHERE id = $3',
+                  [plot.address, plot.plotNumber, plot.id]
+                );
+              }
+            } else {
+              // Новый участок - добавляем
+              try {
+                console.log('Добавление нового участка:', plot.address, plot.plotNumber);
+                await dbRun(
+                  'INSERT INTO user_plots ("userId", address, "plotNumber") VALUES ($1, $2, $3)',
+                  [req.params.id, plot.address, plot.plotNumber]
+                );
+              } catch (error: any) {
+                // Игнорируем ошибки дубликатов
+                if (error.code !== '23505') {
+                  console.error('Ошибка добавления участка:', error);
+                } else {
+                  console.log('Дубликат участка, пропускаем');
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Получаем обновленного пользователя с участками
       const updatedUser = await dbGet(
-        'SELECT id, email, "fullName", address, "plotNumber", phone, role FROM users WHERE id = $1',
+        'SELECT id, email, "fullName", phone, role FROM users WHERE id = $1',
         [req.params.id]
       ) as any;
 
-      res.json(updatedUser);
+      const userPlots = await dbAll(
+        'SELECT id, address, "plotNumber" FROM user_plots WHERE "userId" = $1 ORDER BY "createdAt"',
+        [req.params.id]
+      ) as any[];
+
+      console.log('Возвращаем пользователя с участками:', userPlots);
+
+      res.json({ ...updatedUser, plots: userPlots || [] });
     } catch (error) {
       console.error('Ошибка обновления пользователя:', error);
       res.status(500).json({ error: 'Ошибка сервера' });

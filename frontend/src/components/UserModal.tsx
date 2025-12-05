@@ -136,11 +136,13 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
         data.deactivate = deactivate;
         // Отправляем участки вместе с данными пользователя
         data.plots = plots.map(p => ({ 
-          id: p.id && p.id > 1000000 ? p.id : undefined, // Отправляем ID только для существующих участков
+          id: p.id && p.id > 1000000 ? p.id : null, // Отправляем ID только для существующих участков
           address: p.address, 
           plotNumber: p.plotNumber 
         }));
-        await api.put(`/users/${user.id}`, data);
+        console.log('Отправка данных пользователя с участками:', data);
+        const response = await api.put(`/users/${user.id}`, data);
+        console.log('Ответ сервера:', response.data);
       }
 
       onSave();
