@@ -1,0 +1,27 @@
+.deactivate-checkbox-wrapper {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  line-height: 1.5;
+}
+
+.deactivate-checkbox-wrapper input[type="checkbox"] {
+  margin: 0 10px 0 0;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.deactivate-checkbox-wrapper label {
+  margin: 0 !important;
+  padding: 0 !important;
+  cursor: pointer;
+  font-weight: 500;
+  color: #333;
+  display: inline-block;
+  line-height: 1.5;
+  vertical-align: middle;
+}
+

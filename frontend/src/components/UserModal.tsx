@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { formatPhone } from '../utils/phoneFormatter';
+import './UserModal.css';
 
 interface User {
   id?: number;
@@ -225,37 +226,14 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
 
           {user && (
             <div className="form-group" style={{ marginBottom: '20px' }}>
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center',
-                cursor: 'pointer'
-              }}>
+              <div className="deactivate-checkbox-wrapper">
                 <input
                   type="checkbox"
                   id="deactivate-checkbox"
                   checked={deactivate}
                   onChange={(e) => setDeactivate(e.target.checked)}
-                  style={{ 
-                    marginRight: '10px', 
-                    margin: '0 10px 0 0',
-                    width: '18px',
-                    height: '18px',
-                    cursor: 'pointer',
-                    flexShrink: 0
-                  }}
                 />
-                <label 
-                  htmlFor="deactivate-checkbox"
-                  style={{ 
-                    margin: '0',
-                    cursor: 'pointer',
-                    fontWeight: '500',
-                    color: '#333',
-                    display: 'flex',
-                    alignItems: 'center',
-                    lineHeight: '1.5'
-                  }}
-                >
+                <label htmlFor="deactivate-checkbox">
                   Деактивировать аккаунт
                 </label>
               </div>
