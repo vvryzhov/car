@@ -1,10 +1,14 @@
 import express, { Response } from 'express';
 import bcrypt from 'bcryptjs';
+import multer from 'multer';
+import { parse } from 'csv-parse/sync';
 import { body, validationResult } from 'express-validator';
 import { dbGet, dbRun, dbAll } from '../database';
 import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
 import { sendPasswordResetEmail } from '../services/email';
 import { validatePassword } from '../utils/passwordValidator';
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 const router = express.Router();
 

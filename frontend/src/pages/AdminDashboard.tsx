@@ -28,6 +28,10 @@ const AdminDashboard = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordUserId, setPasswordUserId] = useState<number | null>(null);
+  const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [uploadResult, setUploadResult] = useState<any>(null);
   const [filters, setFilters] = useState({
     email: '',
     phone: '',
@@ -82,7 +86,81 @@ const AdminDashboard = () => {
   const handleUserSaved = () => {
     setShowUserModal(false);
     setEditingUser(null);
+    setSelectedUsers([]);
     fetchUsers();
+  };
+
+  const handleDeleteUser = async (userId: number) => {
+    if (!window.confirm('Вы уверены, что хотите удалить этого пользователя?')) {
+      return;
+    }
+
+    try {
+      await api.delete(`/users/${userId}`);
+      fetchUsers();
+      setSelectedUsers(selectedUsers.filter(id => id !== userId));
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Ошибка удаления пользователя');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedUsers.length === 0) {
+      alert('Выберите пользователей для удаления');
+      return;
+    }
+
+    if (!window.confirm(`Вы уверены, что хотите удалить ${selectedUsers.length} пользователей?`)) {
+      return;
+    }
+
+    try {
+      await api.post('/users/bulk-delete', { userIds: selectedUsers });
+      setSelectedUsers([]);
+      fetchUsers();
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Ошибка массового удаления');
+    }
+  };
+
+  const handleCsvUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!csvFile) {
+      alert('Выберите CSV файл');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('csv', csvFile);
+
+    try {
+      const response = await api.post('/users/bulk-upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      setUploadResult(response.data);
+      setCsvFile(null);
+      fetchUsers();
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Ошибка загрузки CSV');
+    }
+  };
+
+  const handleSelectUser = (userId: number, checked: boolean) => {
+    if (checked) {
+      setSelectedUsers([...selectedUsers, userId]);
+    } else {
+      setSelectedUsers(selectedUsers.filter(id => id !== userId));
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedUsers(users.map(u => u.id));
+    } else {
+      setSelectedUsers([]);
+    }
   };
 
   return (
@@ -115,12 +193,65 @@ const AdminDashboard = () => {
 
       <div className="container">
         <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
             <h2>Управление пользователями</h2>
-            <button className="btn btn-primary" onClick={handleCreateUser}>
-              Создать пользователя
-            </button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {selectedUsers.length > 0 && (
+                <button className="btn btn-danger" onClick={handleBulkDelete}>
+                  Удалить выбранных ({selectedUsers.length})
+                </button>
+              )}
+              <button className="btn btn-secondary" onClick={() => setShowBulkUpload(!showBulkUpload)}>
+                {showBulkUpload ? 'Отменить загрузку' : 'Загрузить из CSV'}
+              </button>
+              <button className="btn btn-primary" onClick={handleCreateUser}>
+                Создать пользователя
+              </button>
+            </div>
           </div>
+
+          {showBulkUpload && (
+            <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
+              <h3 style={{ marginTop: 0 }}>Массовая загрузка пользователей из CSV</h3>
+              <p style={{ color: '#666', fontSize: '14px', marginBottom: '15px' }}>
+                Формат CSV: email, password, fullName, address, plotNumber, phone, role, deactivationDate (опционально)
+              </p>
+              <form onSubmit={handleCsvUpload}>
+                <div className="form-group" style={{ marginBottom: '15px' }}>
+                  <label htmlFor="csvFile">Выберите CSV файл</label>
+                  <input
+                    type="file"
+                    id="csvFile"
+                    accept=".csv"
+                    onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                    required
+                    style={{ width: '100%', padding: '8px' }}
+                  />
+                </div>
+                <button type="submit" className="btn btn-primary">
+                  Загрузить
+                </button>
+              </form>
+              {uploadResult && (
+                <div style={{ marginTop: '15px', padding: '10px', backgroundColor: uploadResult.errors.length > 0 ? '#fff3cd' : '#d4edda', borderRadius: '4px' }}>
+                  <p><strong>{uploadResult.message}</strong></p>
+                  {uploadResult.errors.length > 0 && (
+                    <div>
+                      <p><strong>Ошибки:</strong></p>
+                      <ul style={{ margin: '5px 0', paddingLeft: '20px' }}>
+                        {uploadResult.errors.slice(0, 10).map((err: any, idx: number) => (
+                          <li key={idx}>Строка {err.row}: {err.email} - {err.error}</li>
+                        ))}
+                        {uploadResult.errors.length > 10 && (
+                          <li>... и еще {uploadResult.errors.length - 10} ошибок</li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           <form onSubmit={handleFilterSubmit} style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginBottom: '10px' }}>
@@ -199,6 +330,13 @@ const AdminDashboard = () => {
                 <tbody>
                   {users.map((u) => (
                     <tr key={u.id}>
+                      <td data-label="">
+                        <input
+                          type="checkbox"
+                          checked={selectedUsers.includes(u.id)}
+                          onChange={(e) => handleSelectUser(u.id, e.target.checked)}
+                        />
+                      </td>
                       <td data-label="Email">{u.email}</td>
                       <td data-label="ФИО">{u.fullName}</td>
                       <td data-label="Адрес">{u.address}</td>
@@ -234,6 +372,13 @@ const AdminDashboard = () => {
                             style={{ padding: '5px 10px', fontSize: '14px' }}
                           >
                             Сменить пароль
+                          </button>
+                          <button
+                            className="btn btn-danger"
+                            onClick={() => handleDeleteUser(u.id)}
+                            style={{ padding: '5px 10px', fontSize: '14px' }}
+                          >
+                            Удалить
                           </button>
                         </div>
                       </td>
