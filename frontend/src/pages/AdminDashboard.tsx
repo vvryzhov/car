@@ -99,6 +99,13 @@ const AdminDashboard = () => {
             >
               Настройки
             </button>
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => navigate('/help')}
+              style={{ marginRight: '10px' }}
+            >
+              Справка
+            </button>
             <button className="btn btn-secondary" onClick={logout}>
               Выйти
             </button>
@@ -198,7 +205,7 @@ const AdminDashboard = () => {
                       <td data-label="Участок">{u.plotNumber}</td>
                       <td data-label="Телефон">{u.phone}</td>
                       <td data-label="Роль">
-                        <span className={`badge ${u.role === 'admin' ? 'badge-approved' : u.role === 'security' ? 'badge-pending' : u.role === 'foreman' ? 'badge-activated' : ''}`}>
+                        <span className={`badge ${u.role === 'admin' ? 'badge-admin' : u.role === 'security' ? 'badge-pending' : u.role === 'foreman' ? 'badge-activated' : 'badge-user'}`}>
                           {u.role === 'admin' ? 'Администратор' : u.role === 'security' ? 'Охрана' : u.role === 'foreman' ? 'Прораб' : 'Пользователь'}
                         </span>
                         {(u.deactivatedAt || (u.deactivationDate && new Date(u.deactivationDate) <= new Date())) && (

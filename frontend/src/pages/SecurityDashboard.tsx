@@ -85,6 +85,9 @@ const SecurityDashboard = () => {
           <h1>Панель охраны</h1>
           <div className="header-actions">
             <span className="user-info">{user?.fullName}</span>
+            <button className="btn btn-secondary" onClick={() => window.location.href = '/help'} style={{ marginRight: '10px' }}>
+              Справка
+            </button>
             <button className="btn btn-secondary" onClick={logout}>
               Выйти
             </button>
@@ -166,7 +169,7 @@ const SecurityDashboard = () => {
                     <td data-label="Статус">
                       <span className={`badge badge-${pass.status}`}>
                         {pass.status === 'pending' ? 'Ожидает' : 
-                         pass.status === 'activated' ? 'Активирован' : 
+                         pass.status === 'activated' ? 'Заехал' : 
                          'Отклонено'}
                       </span>
                     </td>

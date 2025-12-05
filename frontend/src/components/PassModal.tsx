@@ -36,12 +36,17 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
     if (pass) {
       setVehicleType(pass.vehicleType);
       setVehicleNumber(pass.vehicleNumber);
-      setEntryDate(pass.entryDate);
+      // Сохраняем дату въезда при редактировании
+      if (pass.entryDate) {
+        setEntryDate(pass.entryDate);
+      }
       setAddress(pass.address);
       setComment(pass.comment || '');
     } else {
       // При создании новой заявки адрес подтягивается из профиля
       setAddress(user.address);
+      // Сбрасываем дату только при создании новой заявки
+      setEntryDate(format(new Date(), 'yyyy-MM-dd'));
     }
   }, [pass, user]);
 

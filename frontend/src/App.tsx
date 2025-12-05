@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import SecurityDashboard from './pages/SecurityDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import Settings from './pages/Settings';
+import Help from './pages/Help';
 import './App.css';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
@@ -49,6 +50,14 @@ const AppRoutes = () => {
         element={
           <PrivateRoute>
             {user?.role === 'admin' ? <Settings /> : <Navigate to="/dashboard" />}
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/help"
+        element={
+          <PrivateRoute>
+            <Help />
           </PrivateRoute>
         }
       />

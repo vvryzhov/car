@@ -82,7 +82,15 @@ router.post(
     body('plotNumber').notEmpty().withMessage('Номер участка обязателен'),
     body('phone').notEmpty().withMessage('Телефон обязателен'),
     body('role').isIn(['user', 'security', 'admin', 'foreman']).withMessage('Роль должна быть user, security, admin или foreman'),
-    body('deactivationDate').optional().isISO8601().withMessage('Некорректная дата деактивации'),
+    body('deactivationDate').optional().custom((value) => {
+      if (value === null || value === undefined || value === '') {
+        return true;
+      }
+      if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return true;
+      }
+      throw new Error('Некорректная дата деактивации');
+    }),
   ],
   async (req: AuthRequest, res: Response) => {
     const errors = validationResult(req);
@@ -139,7 +147,15 @@ router.put(
     body('plotNumber').optional().notEmpty().withMessage('Номер участка не может быть пустым'),
     body('phone').optional().notEmpty().withMessage('Телефон не может быть пустым'),
     body('role').optional().isIn(['user', 'security', 'admin', 'foreman']).withMessage('Некорректная роль'),
-    body('deactivationDate').optional().isISO8601().withMessage('Некорректная дата деактивации'),
+    body('deactivationDate').optional().custom((value) => {
+      if (value === null || value === undefined || value === '') {
+        return true;
+      }
+      if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return true;
+      }
+      throw new Error('Некорректная дата деактивации');
+    }),
     body('deactivate').optional().isBoolean().withMessage('deactivate должен быть boolean'),
   ],
   async (req: AuthRequest, res: Response) => {

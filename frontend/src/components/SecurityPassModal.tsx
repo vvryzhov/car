@@ -91,7 +91,7 @@ const SecurityPassModal = ({ pass, onClose, onSave }: SecurityPassModalProps) =>
               required
             >
               <option value="pending">Ожидает</option>
-              <option value="activated">Активирован</option>
+              <option value="activated">Заехал</option>
               <option value="rejected">Отклонено</option>
             </select>
           </div>

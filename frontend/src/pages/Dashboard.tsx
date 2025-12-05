@@ -139,7 +139,7 @@ const Dashboard = () => {
                     <td data-label="Статус">
                       <span className={`badge badge-${pass.status}`}>
                         {pass.status === 'pending' ? 'Ожидает' : 
-                         pass.status === 'activated' ? 'Активирован' : 
+                         pass.status === 'activated' ? 'Заехал' : 
                          'Отклонено'}
                       </span>
                     </td>

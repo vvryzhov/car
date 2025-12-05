@@ -68,8 +68,8 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
           phone,
           role,
         };
-        if (role === 'foreman' && deactivationDate) {
-          data.deactivationDate = deactivationDate;
+        if (role === 'foreman') {
+          data.deactivationDate = deactivationDate || null;
         }
         await api.post('/users', data);
       } else {
@@ -79,7 +79,7 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
           fullName,
           address,
           plotNumber,
-          phone,
+          phone: phone.replace(/\D/g, ''), // Отправляем только цифры
           role,
         };
         if (role === 'foreman' || user.role === 'foreman') {
@@ -170,7 +170,11 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
               type="tel"
               id="phone"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                const formatted = formatPhone(e.target.value);
+                setPhone(formatted);
+              }}
+              placeholder="8(999)111-22-33"
               required
             />
           </div>

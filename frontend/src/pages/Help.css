@@ -1,0 +1,48 @@
+.help-content {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.help-content h2 {
+  color: #333;
+  margin-bottom: 30px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #007bff;
+}
+
+.help-content section {
+  margin-bottom: 30px;
+}
+
+.help-content h3 {
+  color: #007bff;
+  margin-bottom: 15px;
+  font-size: 1.3em;
+}
+
+.help-content ul {
+  list-style-type: none;
+  padding-left: 0;
+}
+
+.help-content li {
+  margin-bottom: 12px;
+  padding-left: 25px;
+  position: relative;
+  line-height: 1.6;
+}
+
+.help-content li:before {
+  content: "•";
+  color: #007bff;
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+  font-size: 1.2em;
+}
+
+.help-content strong {
+  color: #333;
+  font-weight: 600;
+}
+

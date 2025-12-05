@@ -222,6 +222,16 @@
   color: white;
 }
 
+.badge-user {
+  background-color: #28a745;
+  color: white;
+}
+
+.badge-admin {
+  background-color: #dc3545;
+  color: white;
+}
+
 .badge-rejected {
   background-color: #dc3545;
   color: white;

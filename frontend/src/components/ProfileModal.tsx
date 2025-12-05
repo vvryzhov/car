@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import api from '../services/api';
+import { formatPhone } from '../utils/phoneFormatter';
 
 interface User {
   id: number;
@@ -16,7 +17,7 @@ interface ProfileModalProps {
 }
 
 const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
-  const [phone, setPhone] = useState(user.phone);
+  const [phone, setPhone] = useState(formatPhone(user.phone || ''));
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -53,7 +54,7 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
     try {
       // Обновляем телефон
       const response = await api.put('/users/me', {
-        phone,
+        phone: phone.replace(/\D/g, ''), // Отправляем только цифры
       });
 
       // Если меняем пароль
@@ -123,7 +124,11 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
               type="tel"
               id="phone"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                const formatted = formatPhone(e.target.value);
+                setPhone(formatted);
+              }}
+              placeholder="8(999)111-22-33"
               required
             />
           </div>
