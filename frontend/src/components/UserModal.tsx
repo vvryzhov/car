@@ -225,11 +225,13 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
 
           {user && (
             <div className="form-group" style={{ marginBottom: '20px' }}>
-              <div style={{ 
+              <label style={{ 
                 display: 'flex', 
                 alignItems: 'center', 
                 cursor: 'pointer',
-                lineHeight: '1.5'
+                marginBottom: '0',
+                fontWeight: '500',
+                color: '#333'
               }}>
                 <input
                   type="checkbox"
@@ -244,21 +246,18 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
                     cursor: 'pointer',
                     flexShrink: 0,
                     padding: '0',
-                    border: '1px solid #ddd'
+                    verticalAlign: 'middle',
+                    alignSelf: 'center'
                   }}
                 />
-                <label style={{ 
-                  margin: '0',
-                  cursor: 'pointer',
-                  fontWeight: '500',
-                  color: '#333',
-                  display: 'flex',
-                  alignItems: 'center',
-                  flex: '1'
+                <span style={{ 
+                  lineHeight: '1.5',
+                  display: 'inline-block',
+                  verticalAlign: 'middle'
                 }}>
                   Деактивировать аккаунт
-                </label>
-              </div>
+                </span>
+              </label>
               <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '5px', marginLeft: '28px' }}>
                 Деактивированный пользователь не сможет войти в систему
               </small>
