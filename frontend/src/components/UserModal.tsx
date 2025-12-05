@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { formatPhone } from '../utils/phoneFormatter';
+import { useAuth } from '../contexts/AuthContext';
 import './UserModal.css';
 
 interface Plot {
@@ -27,6 +28,9 @@ interface UserModalProps {
 }
 
 const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
+  const { user: currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'admin';
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -35,6 +39,9 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
   const [deactivationDate, setDeactivationDate] = useState('');
   const [deactivate, setDeactivate] = useState(false);
   const [plots, setPlots] = useState<Plot[]>([]);
+  const [editingPlotIndex, setEditingPlotIndex] = useState<number | null>(null);
+  const [editingPlotAddress, setEditingPlotAddress] = useState('');
+  const [editingPlotNumber, setEditingPlotNumber] = useState('');
   const [newPlotAddress, setNewPlotAddress] = useState('');
   const [newPlotNumber, setNewPlotNumber] = useState('');
   const [error, setError] = useState('');
@@ -48,8 +55,8 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
       setRole(user.role);
       setDeactivationDate(user.deactivationDate || '');
       setDeactivate(!!user.deactivatedAt);
-      // Загружаем участки только для ролей user и foreman
-      if (user.role === 'user' || user.role === 'foreman') {
+      // Загружаем участки: для ролей user и foreman всегда, для других - только если админ редактирует
+      if (user.role === 'user' || user.role === 'foreman' || (isAdmin && user.role !== 'security' && user.role !== 'admin')) {
         fetchUserPlots();
       } else {
         setPlots([]);
@@ -57,7 +64,7 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
     } else {
       setPlots([]);
     }
-  }, [user]);
+  }, [user, isAdmin]);
 
   const fetchUserPlots = async () => {
     if (!user?.id) return;
@@ -82,6 +89,39 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
 
   const handleRemovePlot = (index: number) => {
     setPlots(plots.filter((_, i) => i !== index));
+    setEditingPlotIndex(null);
+  };
+
+  const handleStartEditPlot = (index: number) => {
+    setEditingPlotIndex(index);
+    setEditingPlotAddress(plots[index].address);
+    setEditingPlotNumber(plots[index].plotNumber);
+  };
+
+  const handleSaveEditPlot = () => {
+    if (editingPlotIndex === null) return;
+    if (!editingPlotAddress || !editingPlotNumber) {
+      setError('Заполните адрес и номер участка');
+      return;
+    }
+    
+    const updatedPlots = [...plots];
+    updatedPlots[editingPlotIndex] = {
+      ...updatedPlots[editingPlotIndex],
+      address: editingPlotAddress,
+      plotNumber: editingPlotNumber,
+    };
+    setPlots(updatedPlots);
+    setEditingPlotIndex(null);
+    setEditingPlotAddress('');
+    setEditingPlotNumber('');
+    setError('');
+  };
+
+  const handleCancelEditPlot = () => {
+    setEditingPlotIndex(null);
+    setEditingPlotAddress('');
+    setEditingPlotNumber('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -138,11 +178,11 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
           data.deactivationDate = null;
         }
         data.deactivate = deactivate;
-        // Отправляем участки только для ролей user и foreman
-        if (role === 'user' || role === 'foreman') {
+        // Отправляем участки для ролей user и foreman, или если админ редактирует
+        if (role === 'user' || role === 'foreman' || (isAdmin && role !== 'security' && role !== 'admin')) {
           data.plots = plots.map(p => ({ 
             id: p.id && p.id > 1000000 ? p.id : null, // Отправляем ID только для существующих участков
-            address: p.address, 
+            address: p.address || '', 
             plotNumber: p.plotNumber 
           }));
         }
@@ -204,34 +244,87 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
             />
           </div>
 
-          {/* Участки отображаются только для ролей user и foreman */}
-          {(role === 'user' || role === 'foreman') && (
+          {/* Участки отображаются для ролей user и foreman, или если админ редактирует пользователя */}
+          {(role === 'user' || role === 'foreman' || (isAdmin && role !== 'security' && role !== 'admin')) && (
             <div className="form-group">
               <label>Участки (адрес и номер участка - единое целое)</label>
               {plots.length > 0 && (
                 <div style={{ marginBottom: '15px' }}>
                   {plots.map((plot, index) => (
                     <div key={plot.id || index} style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center',
                       padding: '10px',
                       marginBottom: '10px',
                       backgroundColor: '#f8f9fa',
-                      borderRadius: '4px'
+                      borderRadius: '4px',
+                      border: editingPlotIndex === index ? '2px solid #007bff' : '1px solid #ddd'
                     }}>
-                      <div>
-                        <div><strong>Участок:</strong> {plot.plotNumber}</div>
-                        <div><strong>Адрес:</strong> {plot.address}</div>
-                      </div>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        onClick={() => handleRemovePlot(index)}
-                        style={{ padding: '5px 10px', fontSize: '12px' }}
-                      >
-                        Удалить
-                      </button>
+                      {editingPlotIndex === index ? (
+                        <div>
+                          <div style={{ marginBottom: '10px' }}>
+                            <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Номер участка</label>
+                            <input
+                              type="text"
+                              value={editingPlotNumber}
+                              onChange={(e) => setEditingPlotNumber(e.target.value)}
+                              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                            />
+                          </div>
+                          <div style={{ marginBottom: '10px' }}>
+                            <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Адрес</label>
+                            <input
+                              type="text"
+                              value={editingPlotAddress}
+                              onChange={(e) => setEditingPlotAddress(e.target.value)}
+                              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                            />
+                          </div>
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            <button
+                              type="button"
+                              className="btn btn-primary"
+                              onClick={handleSaveEditPlot}
+                              style={{ padding: '5px 10px', fontSize: '12px' }}
+                            >
+                              Сохранить
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              onClick={handleCancelEditPlot}
+                              style={{ padding: '5px 10px', fontSize: '12px' }}
+                            >
+                              Отмена
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ flex: 1 }}>
+                            <div><strong>Участок:</strong> {plot.plotNumber}</div>
+                            <div><strong>Адрес:</strong> {plot.address || '(не указан)'}</div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '5px' }}>
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={() => handleStartEditPlot(index)}
+                                style={{ padding: '5px 10px', fontSize: '12px' }}
+                              >
+                                Редактировать
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              onClick={() => handleRemovePlot(index)}
+                              style={{ padding: '5px 10px', fontSize: '12px' }}
+                            >
+                              Удалить
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
