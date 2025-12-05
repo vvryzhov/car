@@ -225,16 +225,16 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
 
           {user && (
             <div className="form-group">
-              <label>
+              <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={deactivate}
                   onChange={(e) => setDeactivate(e.target.checked)}
-                  style={{ marginRight: '8px' }}
+                  style={{ marginRight: '8px', marginTop: '0', verticalAlign: 'middle' }}
                 />
-                Деактивировать аккаунт
+                <span style={{ lineHeight: '1.5' }}>Деактивировать аккаунт</span>
               </label>
-              <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '5px' }}>
+              <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '5px', marginLeft: '24px' }}>
                 Деактивированный пользователь не сможет войти в систему
               </small>
             </div>
