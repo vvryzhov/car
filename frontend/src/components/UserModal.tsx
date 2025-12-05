@@ -38,7 +38,7 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
       setFullName(user.fullName);
       setAddress(user.address);
       setPlotNumber(user.plotNumber);
-      setPhone(user.phone);
+      setPhone(formatPhone(user.phone || ''));
       setRole(user.role);
       setDeactivationDate(user.deactivationDate || '');
       setDeactivate(!!user.deactivatedAt);
