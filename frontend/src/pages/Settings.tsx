@@ -28,7 +28,17 @@ const Settings = () => {
   const fetchSettings = async () => {
     try {
       const response = await api.get('/settings/smtp');
-      setSmtpSettings(response.data);
+      // Убеждаемся, что frontend_url инициализирован
+      setSmtpSettings({
+        host: response.data.host || '',
+        port: response.data.port || 587,
+        secure: response.data.secure || false,
+        user: response.data.user || '',
+        password: response.data.password || '',
+        from_email: response.data.from_email || '',
+        from_name: response.data.from_name || '',
+        frontend_url: response.data.frontend_url || process.env.FRONTEND_URL || 'http://localhost:8080',
+      });
     } catch (error) {
       console.error('Ошибка загрузки настроек:', error);
     } finally {
@@ -204,18 +214,22 @@ const Settings = () => {
               />
             </div>
 
-            <div className="form-group">
-              <label htmlFor="frontend_url">URL фронтенда (для ссылок в письмах)</label>
+            <div className="form-group" style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #ddd' }}>
+              <label htmlFor="frontend_url" style={{ fontWeight: 'bold', color: '#333' }}>
+                URL фронтенда (для ссылок в письмах)
+              </label>
               <input
                 type="url"
                 id="frontend_url"
-                value={smtpSettings.frontend_url}
+                value={smtpSettings.frontend_url || ''}
                 onChange={(e) => setSmtpSettings({ ...smtpSettings, frontend_url: e.target.value })}
                 placeholder="https://yourdomain.com или http://yourdomain.com:8080"
+                style={{ marginTop: '8px' }}
               />
-              <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '5px' }}>
+              <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '8px', lineHeight: '1.5' }}>
                 Этот URL используется для ссылок в письмах (например, для восстановления пароля). 
-                Укажите полный URL с протоколом (http:// или https://).
+                Укажите полный URL с протоколом (http:// или https://). 
+                Если не указан, будет использоваться значение из переменной окружения FRONTEND_URL.
               </small>
             </div>
 
