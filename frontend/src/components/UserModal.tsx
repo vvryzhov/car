@@ -48,7 +48,12 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
       setRole(user.role);
       setDeactivationDate(user.deactivationDate || '');
       setDeactivate(!!user.deactivatedAt);
-      fetchUserPlots();
+      // Если участки уже загружены в user, используем их, иначе загружаем
+      if (user.plots && user.plots.length > 0) {
+        setPlots(user.plots);
+      } else {
+        fetchUserPlots();
+      }
     } else {
       setPlots([]);
     }

@@ -6,17 +6,22 @@ import UserModal from '../components/UserModal';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 import Footer from '../components/Footer';
 
+interface Plot {
+  id: number;
+  address: string;
+  plotNumber: string;
+}
+
 interface User {
   id: number;
   email: string;
   fullName: string;
-  address: string;
-  plotNumber: string;
   phone: string;
   role: string;
   deactivatedAt?: string | null;
   deactivationDate?: string | null;
   createdAt: string;
+  plots?: Plot[];
 }
 
 const AdminDashboard = () => {
@@ -329,8 +334,7 @@ const AdminDashboard = () => {
                     </th>
                     <th>Email</th>
                     <th>ФИО</th>
-                    <th>Адрес</th>
-                    <th>Участок</th>
+                    <th>Участки</th>
                     <th>Телефон</th>
                     <th>Роль</th>
                     <th>Дата создания</th>
@@ -349,8 +353,19 @@ const AdminDashboard = () => {
                       </td>
                       <td data-label="Email">{u.email}</td>
                       <td data-label="ФИО">{u.fullName}</td>
-                      <td data-label="Адрес">{u.address}</td>
-                      <td data-label="Участок">{u.plotNumber}</td>
+                      <td data-label="Участки">
+                        {u.plots && u.plots.length > 0 ? (
+                          <div>
+                            {u.plots.map((plot, idx) => (
+                              <div key={plot.id || idx} style={{ marginBottom: '5px' }}>
+                                <strong>{plot.plotNumber}</strong> - {plot.address}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span style={{ color: '#999' }}>Нет участков</span>
+                        )}
+                      </td>
                       <td data-label="Телефон">{u.phone}</td>
                       <td data-label="Роль">
                         <span className={`badge ${u.role === 'admin' ? 'badge-admin' : u.role === 'security' ? 'badge-pending' : u.role === 'foreman' ? 'badge-activated' : 'badge-user'}`}>
