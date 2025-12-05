@@ -317,6 +317,13 @@ const AdminDashboard = () => {
               <table className="table">
                 <thead>
                   <tr>
+                    <th>
+                      <input
+                        type="checkbox"
+                        checked={selectedUsers.length === users.length && users.length > 0}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                      />
+                    </th>
                     <th>Email</th>
                     <th>ФИО</th>
                     <th>Адрес</th>
