@@ -162,7 +162,8 @@ router.put(
       }
 
       const { 
-        vehicleType, 
+        vehicleType,
+        vehicleBrand,
         vehicleNumber, 
         entryDate, 
         address, 
