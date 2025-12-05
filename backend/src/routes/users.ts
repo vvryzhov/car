@@ -575,7 +575,11 @@ router.post(
       );
 
       // Отправляем email
-      const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:8080'}/reset-password?token=${token}`;
+      // Получаем URL из настроек SMTP, если есть, иначе из переменной окружения
+      const { getSMTPConfig } = await import('../services/email');
+      const smtpConfig = await getSMTPConfig();
+      const frontendUrl = smtpConfig?.frontend_url || process.env.FRONTEND_URL || 'http://localhost:8080';
+      const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
       const emailResult = await sendPasswordResetEmail(email, token, resetUrl);
       if (!emailResult.success) {
         console.error('Ошибка отправки email для восстановления пароля:', emailResult.error);

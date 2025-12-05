@@ -159,9 +159,20 @@ export const initDatabase = async () => {
         password VARCHAR(255),
         from_email VARCHAR(255),
         from_name VARCHAR(255),
+        frontend_url VARCHAR(255),
         "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Добавляем поле frontend_url, если его нет
+    const frontendUrlCheck = await dbGet(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name='smtp_settings' AND column_name='frontend_url'
+    `);
+    if (!frontendUrlCheck) {
+      await dbRun('ALTER TABLE smtp_settings ADD COLUMN frontend_url VARCHAR(255)');
+    }
 
     // Таблица токенов восстановления пароля
     await dbRun(`

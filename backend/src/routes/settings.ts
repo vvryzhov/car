@@ -19,6 +19,7 @@ router.get('/smtp', authenticate, requireRole(['admin']), async (req: AuthReques
         password: '',
         from_email: '',
         from_name: '',
+        frontend_url: process.env.FRONTEND_URL || 'http://localhost:8080',
       });
     }
     // Не отправляем пароль в ответе
@@ -30,6 +31,7 @@ router.get('/smtp', authenticate, requireRole(['admin']), async (req: AuthReques
       password: '', // Не отправляем пароль
       from_email: settings.from_email || '',
       from_name: settings.from_name || '',
+      frontend_url: settings.frontend_url || process.env.FRONTEND_URL || 'http://localhost:8080',
     });
   } catch (error) {
     console.error('Ошибка получения настроек SMTP:', error);
@@ -57,7 +59,7 @@ router.post(
     }
 
     try {
-      const { host, port, secure, user, password, from_email, from_name } = req.body;
+      const { host, port, secure, user, password, from_email, from_name, frontend_url } = req.body;
 
       // Проверяем, есть ли уже настройки
       const existing = await dbGet('SELECT id FROM smtp_settings ORDER BY id DESC LIMIT 1');
@@ -65,14 +67,14 @@ router.post(
       if (existing) {
         // Обновляем существующие настройки
         await dbRun(
-          'UPDATE smtp_settings SET host = $1, port = $2, secure = $3, "user" = $4, password = $5, from_email = $6, from_name = $7, "updatedAt" = CURRENT_TIMESTAMP WHERE id = $8',
-          [host, port, secure || false, user, password, from_email, from_name || 'Система управления пропусками', existing.id]
+          'UPDATE smtp_settings SET host = $1, port = $2, secure = $3, "user" = $4, password = $5, from_email = $6, from_name = $7, frontend_url = $8, "updatedAt" = CURRENT_TIMESTAMP WHERE id = $9',
+          [host, port, secure || false, user, password, from_email, from_name || 'Система управления пропусками', frontend_url || null, existing.id]
         );
       } else {
         // Создаем новые настройки
         await dbRun(
-          'INSERT INTO smtp_settings (host, port, secure, "user", password, from_email, from_name) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-          [host, port, secure || false, user, password, from_email, from_name || 'Система управления пропусками']
+          'INSERT INTO smtp_settings (host, port, secure, "user", password, from_email, from_name, frontend_url) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+          [host, port, secure || false, user, password, from_email, from_name || 'Система управления пропусками', frontend_url || null]
         );
       }
 

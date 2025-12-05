@@ -13,6 +13,7 @@ const Settings = () => {
     password: '',
     from_email: '',
     from_name: '',
+    frontend_url: '',
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -201,6 +202,21 @@ const Settings = () => {
                 onChange={(e) => setSmtpSettings({ ...smtpSettings, from_name: e.target.value })}
                 placeholder="Система управления пропусками"
               />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="frontend_url">URL фронтенда (для ссылок в письмах)</label>
+              <input
+                type="url"
+                id="frontend_url"
+                value={smtpSettings.frontend_url}
+                onChange={(e) => setSmtpSettings({ ...smtpSettings, frontend_url: e.target.value })}
+                placeholder="https://yourdomain.com или http://yourdomain.com:8080"
+              />
+              <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '5px' }}>
+                Этот URL используется для ссылок в письмах (например, для восстановления пароля). 
+                Укажите полный URL с протоколом (http:// или https://).
+              </small>
             </div>
 
             {error && (

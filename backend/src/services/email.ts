@@ -9,6 +9,7 @@ interface SMTPConfig {
   password: string;
   from_email: string;
   from_name: string;
+  frontend_url?: string;
 }
 
 export const getSMTPConfig = async (): Promise<SMTPConfig | null> => {
@@ -25,6 +26,7 @@ export const getSMTPConfig = async (): Promise<SMTPConfig | null> => {
       password: config.password,
       from_email: config.from_email,
       from_name: config.from_name || 'Система управления пропусками',
+      frontend_url: config.frontend_url,
     };
   } catch (error) {
     console.error('Ошибка получения настроек SMTP:', error);
