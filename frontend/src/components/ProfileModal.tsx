@@ -4,6 +4,7 @@ import { formatPhone } from '../utils/phoneFormatter';
 
 interface User {
   id: number;
+  email: string;
   fullName: string;
   address: string;
   plotNumber: string;
@@ -17,6 +18,7 @@ interface ProfileModalProps {
 }
 
 const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
+  const [email, setEmail] = useState(user.email || '');
   const [phone, setPhone] = useState(formatPhone(user.phone || ''));
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -52,8 +54,9 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
     setLoading(true);
 
     try {
-      // Обновляем телефон
+      // Обновляем email и телефон
       const response = await api.put('/users/me', {
+        email,
         phone: phone.replace(/\D/g, ''), // Отправляем только цифры
       });
 
@@ -82,6 +85,17 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
         </div>
 
         <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="email">Email</label>
+            <input
+              type="email"
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+
           <div className="form-group">
             <label htmlFor="fullName">ФИО</label>
             <input

@@ -305,6 +305,7 @@ router.put(
   '/me',
   authenticate,
   [
+    body('email').optional().isEmail().withMessage('Некорректный email'),
     body('phone').optional().notEmpty().withMessage('Телефон не может быть пустым'),
   ],
   async (req: AuthRequest, res: Response) => {
@@ -313,9 +314,21 @@ router.put(
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { phone } = req.body;
+    const { email, phone } = req.body;
 
     try {
+      // Проверяем, что email не занят другим пользователем (если меняется)
+      if (email !== undefined) {
+        const existingUser = await dbGet('SELECT id FROM users WHERE email = $1 AND id != $2', [email, req.user!.id]);
+        if (existingUser) {
+          return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
+        }
+        await dbRun(
+          'UPDATE users SET email = $1 WHERE id = $2',
+          [email, req.user!.id]
+        );
+      }
+
       if (phone !== undefined) {
         await dbRun(
           'UPDATE users SET phone = $1 WHERE id = $2',

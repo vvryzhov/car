@@ -28,6 +28,23 @@ router.post(
         return res.status(401).json({ error: 'Неверный email или пароль' });
       }
 
+      // Проверяем, не деактивирован ли пользователь
+      if (user.deactivatedAt) {
+        return res.status(403).json({ error: 'Аккаунт деактивирован' });
+      }
+
+      // Проверяем дату деактивации
+      if (user.deactivationDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const deactivationDate = new Date(user.deactivationDate);
+        deactivationDate.setHours(0, 0, 0, 0);
+        
+        if (today >= deactivationDate) {
+          return res.status(403).json({ error: 'Аккаунт деактивирован' });
+        }
+      }
+
       const isValidPassword = await bcrypt.compare(password, user.password);
 
       if (!isValidPassword) {
