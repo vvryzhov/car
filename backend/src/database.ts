@@ -99,6 +99,13 @@ export const initDatabase = async () => {
     }
 
     // Таблица настроек SMTP
+    // Сначала пытаемся удалить таблицу, если она была создана с ошибкой
+    try {
+      await dbRun('DROP TABLE IF EXISTS smtp_settings CASCADE');
+    } catch (error) {
+      // Игнорируем ошибки при удалении
+    }
+    
     await dbRun(`
       CREATE TABLE IF NOT EXISTS smtp_settings (
         id SERIAL PRIMARY KEY,
