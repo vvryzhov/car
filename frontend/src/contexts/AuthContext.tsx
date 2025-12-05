@@ -8,7 +8,7 @@ interface User {
   address: string;
   plotNumber: string;
   phone: string;
-  role: 'user' | 'security' | 'admin';
+  role: 'user' | 'security' | 'admin' | 'foreman';
 }
 
 interface AuthContextType {

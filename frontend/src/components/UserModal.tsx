@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
+import { formatPhone } from '../utils/phoneFormatter';
 
 interface User {
   id?: number;
