@@ -597,18 +597,18 @@ router.post(
         errors: [] as Array<{ row: number; email: string; error: string }>,
       };
 
-      // Ожидаемые колонки: email, password, fullName, address, plotNumber, phone, role, deactivationDate (опционально)
+      // Ожидаемые колонки: email, fullName, plotNumber, phone (опционально)
       for (let i = 0; i < records.length; i++) {
         const record = records[i];
         const rowNumber = i + 2; // +2 потому что первая строка - заголовки, и индексация с 0
 
         try {
           // Валидация обязательных полей
-          if (!record.email || !record.password || !record.fullName || !record.address || !record.plotNumber || !record.phone) {
+          if (!record.email || !record.fullName || !record.plotNumber) {
             results.errors.push({
               row: rowNumber,
               email: record.email || 'N/A',
-              error: 'Отсутствуют обязательные поля',
+              error: 'Отсутствуют обязательные поля (email, fullName, plotNumber)',
             });
             continue;
           }
@@ -619,17 +619,6 @@ router.post(
               row: rowNumber,
               email: record.email,
               error: 'Некорректный email',
-            });
-            continue;
-          }
-
-          // Валидация пароля
-          const passwordValidation = validatePassword(record.password);
-          if (!passwordValidation.valid) {
-            results.errors.push({
-              row: rowNumber,
-              email: record.email,
-              error: passwordValidation.error || 'Некорректный пароль',
             });
             continue;
           }
@@ -645,41 +634,28 @@ router.post(
             continue;
           }
 
-          // Валидация роли
-          const role = record.role || 'user';
-          if (!['user', 'security', 'admin', 'foreman'].includes(role)) {
-            results.errors.push({
-              row: rowNumber,
-              email: record.email,
-              error: 'Некорректная роль',
-            });
-            continue;
-          }
+          // Генерируем временный пароль (пользователь должен будет его сменить)
+          // Пароль: временный пароль с буквами и цифрами
+          const crypto = require('crypto');
+          const tempPassword = 'Temp' + crypto.randomBytes(4).toString('hex') + '123';
+          const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
-          // Хешируем пароль
-          const hashedPassword = await bcrypt.hash(record.password, 10);
-
-          // Обрабатываем дату деактивации (только для прорабов)
-          let deactivationDate = null;
-          if (role === 'foreman' && record.deactivationDate) {
-            // Проверяем формат даты
-            if (/^\d{4}-\d{2}-\d{2}$/.test(record.deactivationDate)) {
-              deactivationDate = record.deactivationDate;
-            }
-          }
+          // Значения по умолчанию
+          const phone = record.phone || '';
+          const address = ''; // Адрес по умолчанию пустой
+          const role = 'user'; // Роль по умолчанию - пользователь
 
           // Создаем пользователя
           await dbRun(
-            'INSERT INTO users (email, password, "fullName", address, "plotNumber", phone, role, "deactivationDate") VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+            'INSERT INTO users (email, password, "fullName", address, "plotNumber", phone, role) VALUES ($1, $2, $3, $4, $5, $6, $7)',
             [
               record.email,
               hashedPassword,
               record.fullName,
-              record.address,
+              address,
               record.plotNumber,
-              record.phone,
+              phone,
               role,
-              deactivationDate,
             ]
           );
 

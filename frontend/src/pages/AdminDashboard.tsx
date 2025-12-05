@@ -214,7 +214,10 @@ const AdminDashboard = () => {
             <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
               <h3 style={{ marginTop: 0 }}>Массовая загрузка пользователей из CSV</h3>
               <p style={{ color: '#666', fontSize: '14px', marginBottom: '15px' }}>
-                Формат CSV: email, password, fullName, address, plotNumber, phone, role, deactivationDate (опционально)
+                Формат CSV: <strong>email, fullName, plotNumber, phone</strong> (phone опционально)
+              </p>
+              <p style={{ color: '#666', fontSize: '12px', marginBottom: '15px', fontStyle: 'italic' }}>
+                Примечание: Пароль будет сгенерирован автоматически. Пользователь должен будет сменить его при первом входе.
               </p>
               <form onSubmit={handleCsvUpload}>
                 <div className="form-group" style={{ marginBottom: '15px' }}>
