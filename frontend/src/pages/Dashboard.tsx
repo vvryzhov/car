@@ -83,7 +83,8 @@ const Dashboard = () => {
           <div className="header-actions">
             <span className="user-info">
               {user?.fullName}
-              {user?.plots && user.plots.length > 0 && (
+              {/* Показываем количество участков только для ролей user и foreman */}
+              {user?.role !== 'security' && user?.role !== 'admin' && user?.plots && user.plots.length > 0 && (
                 <span style={{ color: '#666', fontSize: '0.9em', marginLeft: '8px' }}>
                   ({user.plots.length} {user.plots.length === 1 ? 'участок' : 'участков'})
                 </span>

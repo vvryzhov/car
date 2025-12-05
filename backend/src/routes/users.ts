@@ -91,11 +91,14 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
-    // Получаем участки пользователя
-    const plots = await dbAll(
-      'SELECT id, address, "plotNumber" FROM user_plots WHERE "userId" = $1 ORDER BY "createdAt"',
-      [req.user!.id]
-    ) as any[];
+    // Получаем участки пользователя только для ролей user и foreman
+    let plots: any[] = [];
+    if (user.role === 'user' || user.role === 'foreman') {
+      plots = await dbAll(
+        'SELECT id, address, "plotNumber" FROM user_plots WHERE "userId" = $1 ORDER BY "createdAt"',
+        [req.user!.id]
+      ) as any[];
+    }
 
     res.json({ ...user, plots: plots || [] });
   } catch (error) {
@@ -112,6 +115,11 @@ router.get('/:id/plots', authenticate, async (req: AuthRequest, res: Response) =
     // Проверяем права доступа
     if (req.user!.role !== 'admin' && req.user!.id !== userId) {
       return res.status(403).json({ error: 'Доступ запрещен' });
+    }
+
+    // Для security и admin не возвращаем участки (даже если они запрашивают свои)
+    if (req.user!.role === 'security' || req.user!.role === 'admin') {
+      return res.json([]);
     }
 
     const plots = await dbAll(
@@ -134,6 +142,11 @@ router.post('/:id/plots', authenticate, async (req: AuthRequest, res: Response) 
     // Проверяем права доступа
     if (req.user!.role !== 'admin' && req.user!.id !== userId) {
       return res.status(403).json({ error: 'Доступ запрещен' });
+    }
+
+    // Security и admin не могут добавлять участки (даже себе)
+    if (req.user!.role === 'security' || req.user!.role === 'admin') {
+      return res.status(403).json({ error: 'Участки недоступны для вашей роли' });
     }
 
     const { address, plotNumber } = req.body;
@@ -170,6 +183,11 @@ router.delete('/:id/plots/:plotId', authenticate, async (req: AuthRequest, res: 
     // Проверяем права доступа
     if (req.user!.role !== 'admin' && req.user!.id !== userId) {
       return res.status(403).json({ error: 'Доступ запрещен' });
+    }
+
+    // Security и admin не могут удалять участки (даже себе)
+    if (req.user!.role === 'security' || req.user!.role === 'admin') {
+      return res.status(403).json({ error: 'Участки недоступны для вашей роли' });
     }
 
     // Проверяем, что участок принадлежит пользователю

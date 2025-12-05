@@ -51,12 +51,15 @@ router.post(
         return res.status(401).json({ error: 'Неверный email или пароль' });
       }
 
-      // Получаем участки пользователя
-      const { dbAll } = await import('../database');
-      const plots = await dbAll(
-        'SELECT id, address, "plotNumber" FROM user_plots WHERE "userId" = $1 ORDER BY "createdAt"',
-        [user.id]
-      ) as any[];
+      // Получаем участки пользователя только для ролей user и foreman
+      let plots: any[] = [];
+      if (user.role === 'user' || user.role === 'foreman') {
+        const { dbAll } = await import('../database');
+        plots = await dbAll(
+          'SELECT id, address, "plotNumber" FROM user_plots WHERE "userId" = $1 ORDER BY "createdAt"',
+          [user.id]
+        ) as any[];
+      }
 
       const token = jwt.sign(
         { id: user.id, email: user.email, role: user.role },

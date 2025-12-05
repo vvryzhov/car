@@ -36,8 +36,11 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
   const [showPasswordChange, setShowPasswordChange] = useState(false);
 
   useEffect(() => {
-    fetchPlots();
-  }, [user.id]);
+    // Загружаем участки только для ролей user и foreman
+    if (user.role === 'user' || user.role === 'foreman') {
+      fetchPlots();
+    }
+  }, [user.id, user.role]);
 
   const fetchPlots = async () => {
     try {
@@ -162,66 +165,69 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
             <small style={{ color: '#666', fontSize: '12px' }}>ФИО можно изменить только через администратора</small>
           </div>
 
-          <div className="form-group">
-            <label>Участки</label>
-            {plots.length > 0 ? (
-              <div style={{ marginBottom: '15px' }}>
-                {plots.map((plot) => (
-                  <div key={plot.id} style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    padding: '10px',
-                    marginBottom: '10px',
-                    backgroundColor: '#f8f9fa',
-                    borderRadius: '4px'
-                  }}>
-                    <div>
-                      <div><strong>Участок:</strong> {plot.plotNumber}</div>
-                      <div><strong>Адрес:</strong> {plot.address}</div>
+          {/* Участки отображаются только для ролей user и foreman */}
+          {(user.role === 'user' || user.role === 'foreman') && (
+            <div className="form-group">
+              <label>Участки</label>
+              {plots.length > 0 ? (
+                <div style={{ marginBottom: '15px' }}>
+                  {plots.map((plot) => (
+                    <div key={plot.id} style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center',
+                      padding: '10px',
+                      marginBottom: '10px',
+                      backgroundColor: '#f8f9fa',
+                      borderRadius: '4px'
+                    }}>
+                      <div>
+                        <div><strong>Участок:</strong> {plot.plotNumber}</div>
+                        <div><strong>Адрес:</strong> {plot.address}</div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => handleDeletePlot(plot.id)}
+                        style={{ padding: '5px 10px', fontSize: '12px' }}
+                      >
+                        Удалить
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={() => handleDeletePlot(plot.id)}
-                      style={{ padding: '5px 10px', fontSize: '12px' }}
-                    >
-                      Удалить
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ color: '#666', marginBottom: '15px' }}>Нет добавленных участков</div>
-            )}
-            
-            <div style={{ borderTop: '1px solid #ddd', paddingTop: '15px', marginTop: '15px' }}>
-              <h4 style={{ marginBottom: '10px', fontSize: '14px' }}>Добавить участок</h4>
-              <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                <input
-                  type="text"
-                  placeholder="Номер участка"
-                  value={newPlotNumber}
-                  onChange={(e) => setNewPlotNumber(e.target.value)}
-                  style={{ flex: 1 }}
-                />
-                <input
-                  type="text"
-                  placeholder="Адрес"
-                  value={newPlotAddress}
-                  onChange={(e) => setNewPlotAddress(e.target.value)}
-                  style={{ flex: 2 }}
-                />
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={handleAddPlot}
-                >
-                  Добавить
-                </button>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ color: '#666', marginBottom: '15px' }}>Нет добавленных участков</div>
+              )}
+              
+              <div style={{ borderTop: '1px solid #ddd', paddingTop: '15px', marginTop: '15px' }}>
+                <h4 style={{ marginBottom: '10px', fontSize: '14px' }}>Добавить участок</h4>
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                  <input
+                    type="text"
+                    placeholder="Номер участка"
+                    value={newPlotNumber}
+                    onChange={(e) => setNewPlotNumber(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Адрес"
+                    value={newPlotAddress}
+                    onChange={(e) => setNewPlotAddress(e.target.value)}
+                    style={{ flex: 2 }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handleAddPlot}
+                  >
+                    Добавить
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <div className="form-group">
             <label htmlFor="phone">Контактный телефон</label>
