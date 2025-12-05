@@ -498,4 +498,211 @@ router.post(
   }
 );
 
+// Удалить пользователя (только для админа)
+router.delete('/:id', authenticate, requireRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = parseInt(req.params.id);
+    
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Некорректный ID пользователя' });
+    }
+    
+    // Нельзя удалить самого себя
+    if (userId === req.user!.id) {
+      return res.status(400).json({ error: 'Нельзя удалить свой собственный аккаунт' });
+    }
+
+    const user = await dbGet('SELECT id FROM users WHERE id = $1', [userId]) as any;
+    if (!user) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    await dbRun('DELETE FROM users WHERE id = $1', [userId]);
+    res.json({ message: 'Пользователь удален' });
+  } catch (error) {
+    console.error('Ошибка удаления пользователя:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Массовое удаление пользователей (только для админа)
+router.post(
+  '/bulk-delete',
+  authenticate,
+  requireRole(['admin']),
+  [
+    body('userIds').isArray().withMessage('userIds должен быть массивом'),
+    body('userIds.*').isInt().withMessage('Каждый ID должен быть числом'),
+  ],
+  async (req: AuthRequest, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const { userIds } = req.body;
+
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        return res.status(400).json({ error: 'Необходимо указать хотя бы одного пользователя' });
+      }
+
+      // Нельзя удалить самого себя
+      if (userIds.includes(req.user!.id)) {
+        return res.status(400).json({ error: 'Нельзя удалить свой собственный аккаунт' });
+      }
+
+      // Удаляем пользователей
+      const placeholders = userIds.map((_: any, index: number) => `$${index + 1}`).join(',');
+      await dbRun(
+        `DELETE FROM users WHERE id IN (${placeholders})`,
+        userIds
+      );
+
+      res.json({ message: `Удалено пользователей: ${userIds.length}` });
+    } catch (error) {
+      console.error('Ошибка массового удаления пользователей:', error);
+      res.status(500).json({ error: 'Ошибка сервера' });
+    }
+  }
+);
+
+// Массовая загрузка пользователей из CSV (только для админа)
+router.post(
+  '/bulk-upload',
+  authenticate,
+  requireRole(['admin']),
+  upload.single('csv'),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'CSV файл не загружен' });
+      }
+
+      const csvContent = req.file.buffer.toString('utf-8');
+      
+      // Парсим CSV
+      const records = parse(csvContent, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+      });
+
+      if (records.length === 0) {
+        return res.status(400).json({ error: 'CSV файл пуст' });
+      }
+
+      const results = {
+        success: 0,
+        errors: [] as Array<{ row: number; email: string; error: string }>,
+      };
+
+      // Ожидаемые колонки: email, password, fullName, address, plotNumber, phone, role, deactivationDate (опционально)
+      for (let i = 0; i < records.length; i++) {
+        const record = records[i];
+        const rowNumber = i + 2; // +2 потому что первая строка - заголовки, и индексация с 0
+
+        try {
+          // Валидация обязательных полей
+          if (!record.email || !record.password || !record.fullName || !record.address || !record.plotNumber || !record.phone) {
+            results.errors.push({
+              row: rowNumber,
+              email: record.email || 'N/A',
+              error: 'Отсутствуют обязательные поля',
+            });
+            continue;
+          }
+
+          // Валидация email
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(record.email)) {
+            results.errors.push({
+              row: rowNumber,
+              email: record.email,
+              error: 'Некорректный email',
+            });
+            continue;
+          }
+
+          // Валидация пароля
+          const passwordValidation = validatePassword(record.password);
+          if (!passwordValidation.valid) {
+            results.errors.push({
+              row: rowNumber,
+              email: record.email,
+              error: passwordValidation.error || 'Некорректный пароль',
+            });
+            continue;
+          }
+
+          // Проверка, существует ли пользователь
+          const existingUser = await dbGet('SELECT id FROM users WHERE email = $1', [record.email]);
+          if (existingUser) {
+            results.errors.push({
+              row: rowNumber,
+              email: record.email,
+              error: 'Пользователь с таким email уже существует',
+            });
+            continue;
+          }
+
+          // Валидация роли
+          const role = record.role || 'user';
+          if (!['user', 'security', 'admin', 'foreman'].includes(role)) {
+            results.errors.push({
+              row: rowNumber,
+              email: record.email,
+              error: 'Некорректная роль',
+            });
+            continue;
+          }
+
+          // Хешируем пароль
+          const hashedPassword = await bcrypt.hash(record.password, 10);
+
+          // Обрабатываем дату деактивации (только для прорабов)
+          let deactivationDate = null;
+          if (role === 'foreman' && record.deactivationDate) {
+            // Проверяем формат даты
+            if (/^\d{4}-\d{2}-\d{2}$/.test(record.deactivationDate)) {
+              deactivationDate = record.deactivationDate;
+            }
+          }
+
+          // Создаем пользователя
+          await dbRun(
+            'INSERT INTO users (email, password, "fullName", address, "plotNumber", phone, role, "deactivationDate") VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+            [
+              record.email,
+              hashedPassword,
+              record.fullName,
+              record.address,
+              record.plotNumber,
+              record.phone,
+              role,
+              deactivationDate,
+            ]
+          );
+
+          results.success++;
+        } catch (error: any) {
+          results.errors.push({
+            row: rowNumber,
+            email: record.email || 'N/A',
+            error: error.message || 'Ошибка создания пользователя',
+          });
+        }
+      }
+
+      res.json({
+        message: `Обработано: ${records.length}, Успешно: ${results.success}, Ошибок: ${results.errors.length}`,
+        success: results.success,
+        errors: results.errors,
+      });
+    } catch (error) {
+      console.error('Ошибка массовой загрузки пользователей:', error);
+      res.status(500).json({ error: 'Ошибка сервера' });
+    }
+  }
+);
+
 export default router;
