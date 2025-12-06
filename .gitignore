@@ -7,3 +7,14 @@ dist/
 npm-debug.log
 .vscode/
 .idea/
+
+# Temporary scripts
+*.bat
+*.ps1
+*.sh
+_temp_*
+
+# Python helper scripts
+*.py
+__pycache__/
+*.pyc
