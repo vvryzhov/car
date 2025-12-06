@@ -107,10 +107,17 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
     setError('');
     setLoading(true);
 
+    // Проверка обязательных полей перед отправкой
+    if (!vehicleBrand || vehicleBrand.trim() === '') {
+      setError('Марка авто обязательна');
+      setLoading(false);
+      return;
+    }
+
     try {
       const data = {
         vehicleType,
-        vehicleBrand: vehicleBrand.trim() || '',
+        vehicleBrand: vehicleBrand.trim(),
         vehicleNumber,
         entryDate,
         address,
@@ -126,7 +133,13 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
 
       onSave();
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Ошибка сохранения заявки');
+      // Обрабатываем ошибки валидации
+      if (err.response?.data?.errors && Array.isArray(err.response.data.errors)) {
+        const validationErrors = err.response.data.errors.map((e: any) => e.msg || e.message).join(', ');
+        setError(validationErrors || 'Ошибка валидации');
+      } else {
+        setError(err.response?.data?.error || 'Ошибка сохранения заявки');
+      }
     } finally {
       setLoading(false);
     }
