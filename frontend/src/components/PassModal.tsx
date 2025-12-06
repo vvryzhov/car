@@ -83,7 +83,8 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
       if (user.plots && user.plots.length > 0) {
         const firstPlot = user.plots[0];
         setSelectedPlotId(firstPlot.id);
-        setAddress(firstPlot.address);
+        // Если адрес пустой, используем номер участка как адрес
+        setAddress(firstPlot.address && firstPlot.address.trim() !== '' ? firstPlot.address : firstPlot.plotNumber);
         setPlotNumber(firstPlot.plotNumber);
       }
       // Сбрасываем дату только при создании новой заявки
@@ -96,7 +97,8 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
     if (selectedPlotId && user.plots) {
       const plot = user.plots.find(p => p.id === selectedPlotId);
       if (plot) {
-        setAddress(plot.address);
+        // Если адрес пустой, используем номер участка как адрес
+        setAddress(plot.address && plot.address.trim() !== '' ? plot.address : plot.plotNumber);
         setPlotNumber(plot.plotNumber);
       }
     }
@@ -115,12 +117,15 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
     }
 
     try {
+      // Если адрес пустой, но участок выбран, используем номер участка как адрес
+      const finalAddress = address && address.trim() !== '' ? address.trim() : (plotNumber || '');
+      
       const data = {
         vehicleType,
         vehicleBrand: vehicleBrand.trim(),
         vehicleNumber,
         entryDate,
-        address,
+        address: finalAddress,
         plotNumber,
         comment: comment || null,
       };
