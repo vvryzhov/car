@@ -6,10 +6,17 @@ services:
       - POSTGRES_DB=${DB_NAME:-passes_db}
       - POSTGRES_USER=${DB_USER:-postgres}
       - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+    command: >
+      postgres
+      -c log_min_messages=warning
+      -c log_connections=off
+      -c log_disconnections=off
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "${DB_PORT:-5432}:5432"
+    # Порты закомментированы для безопасности - доступ только внутри Docker сети
+    # ports:
+    #   - "${DB_PORT:-5432}:5432"
     restart: unless-stopped
     networks:
       - cottage-network
