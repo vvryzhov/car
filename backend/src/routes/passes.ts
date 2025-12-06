@@ -3,6 +3,7 @@ import { body, validationResult } from 'express-validator';
 import { dbGet, dbRun, dbAll } from '../database';
 import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
 import { validateVehicleNumber } from '../utils/vehicleNumberValidator';
+import * as XLSX from 'xlsx';
 
 const router = express.Router();
 

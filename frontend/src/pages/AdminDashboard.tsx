@@ -127,6 +127,47 @@ const AdminDashboard = () => {
     fetchPasses();
   };
 
+  const handleExportToExcel = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (passFilters.date) params.append('date', passFilters.date);
+      if (passFilters.vehicleType) params.append('vehicleType', passFilters.vehicleType);
+      if (passFilters.userId) params.append('userId', passFilters.userId);
+      if (passFilters.plotNumber) params.append('plotNumber', passFilters.plotNumber);
+
+      const response = await api.get(`/passes/export/excel?${params.toString()}`, {
+        responseType: 'blob',
+      });
+
+      // Создаем ссылку для скачивания
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `заявки_${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Ошибка экспорта:', error);
+      alert('Ошибка при экспорте файла');
+    }
+  };
+
+  const handleDeletePass = async (passId: number) => {
+    if (!window.confirm('Вы уверены, что хотите удалить эту заявку?')) {
+      return;
+    }
+
+    try {
+      await api.delete(`/passes/${passId}`);
+      fetchPasses(); // Обновляем список
+    } catch (error) {
+      console.error('Ошибка удаления заявки:', error);
+      alert('Ошибка при удалении заявки');
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'passes') {
       // Загружаем пользователей для фильтра, если они еще не загружены
@@ -557,12 +598,21 @@ const AdminDashboard = () => {
                     />
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                   <button type="submit" className="btn btn-primary" style={{ padding: '8px 16px' }}>
                     Применить фильтры
                   </button>
                   <button type="button" className="btn btn-secondary" onClick={handleClearPassFilters} style={{ padding: '8px 16px' }}>
                     Очистить
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn btn-success" 
+                    onClick={handleExportToExcel} 
+                    style={{ padding: '8px 16px' }}
+                    disabled={passesLoading || passes.length === 0}
+                  >
+                    Экспорт в Excel
                   </button>
                 </div>
               </form>
@@ -590,6 +640,7 @@ const AdminDashboard = () => {
                         <th>Комментарий охраны</th>
                         <th>Статус</th>
                         <th>Дата создания</th>
+                        <th>Действия</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -616,6 +667,15 @@ const AdminDashboard = () => {
                           </td>
                           <td data-label="Дата создания">
                             {format(new Date(pass.createdAt), 'dd.MM.yyyy HH:mm')}
+                          </td>
+                          <td data-label="Действия">
+                            <button
+                              className="btn btn-danger"
+                              onClick={() => handleDeletePass(pass.id)}
+                              style={{ padding: '5px 10px', fontSize: '14px' }}
+                            >
+                              Удалить
+                            </button>
                           </td>
                         </tr>
                       ))}
