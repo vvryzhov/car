@@ -47,6 +47,8 @@ const SecurityPassModal = ({ pass, onClose, onSave }: SecurityPassModalProps) =>
   const [status, setStatus] = useState(pass.status);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [brandSuggestions, setBrandSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   useEffect(() => {
     setVehicleType(pass.vehicleType);
@@ -60,6 +62,20 @@ const SecurityPassModal = ({ pass, onClose, onSave }: SecurityPassModalProps) =>
     setSecurityComment(pass.securityComment || '');
     setStatus(pass.status);
   }, [pass]);
+
+  // Фильтруем марки при вводе
+  useEffect(() => {
+    if (vehicleBrand.trim().length > 0) {
+      const filtered = carBrands.filter(brand =>
+        brand.toLowerCase().includes(vehicleBrand.toLowerCase())
+      ).slice(0, 5); // Показываем максимум 5 подсказок
+      setBrandSuggestions(filtered);
+      setShowSuggestions(filtered.length > 0);
+    } else {
+      setBrandSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }, [vehicleBrand]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,22 +152,68 @@ const SecurityPassModal = ({ pass, onClose, onSave }: SecurityPassModalProps) =>
             </select>
           </div>
 
-          <div className="form-group">
+          <div className="form-group" style={{ position: 'relative' }}>
             <label htmlFor="vehicleBrand">Марка авто</label>
             <input
               type="text"
               id="vehicleBrand"
-              list="carBrandsSecurity"
               value={vehicleBrand}
               onChange={(e) => setVehicleBrand(e.target.value)}
+              onFocus={() => {
+                if (vehicleBrand.trim().length > 0 && brandSuggestions.length > 0) {
+                  setShowSuggestions(true);
+                }
+              }}
+              onBlur={() => {
+                // Небольшая задержка, чтобы клик по подсказке успел сработать
+                setTimeout(() => setShowSuggestions(false), 200);
+              }}
               required
-              placeholder="Начните вводить марку или выберите из списка"
+              placeholder="Начните вводить марку"
+              autoComplete="off"
             />
-            <datalist id="carBrandsSecurity">
-              {carBrands.map((brand) => (
-                <option key={brand} value={brand} />
-              ))}
-            </datalist>
+            {showSuggestions && brandSuggestions.length > 0 && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  backgroundColor: 'white',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  zIndex: 1000,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                  marginTop: '2px',
+                }}
+              >
+                {brandSuggestions.map((brand) => (
+                  <div
+                    key={brand}
+                    onClick={() => {
+                      setVehicleBrand(brand);
+                      setShowSuggestions(false);
+                    }}
+                    onMouseDown={(e) => e.preventDefault()} // Предотвращаем blur при клике
+                    style={{
+                      padding: '10px',
+                      cursor: 'pointer',
+                      borderBottom: '1px solid #f0f0f0',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#f8f9fa';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'white';
+                    }}
+                  >
+                    {brand}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="form-group">
