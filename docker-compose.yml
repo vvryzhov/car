@@ -14,9 +14,8 @@ services:
       -c log_disconnections=off
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    # Порты закомментированы для безопасности - доступ только внутри Docker сети
-    # ports:
-    #   - "${DB_PORT:-5432}:5432"
+    ports:
+      - "${DB_PORT:-5432}:5432"
     restart: unless-stopped
     networks:
       - cottage-network
