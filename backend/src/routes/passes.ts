@@ -4,8 +4,46 @@ import { dbGet, dbRun, dbAll } from '../database';
 import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
 import { validateVehicleNumber } from '../utils/vehicleNumberValidator';
 import * as XLSX from 'xlsx';
+import { addClient, broadcastEvent } from '../services/sse';
 
 const router = express.Router();
+
+// SSE endpoint для получения обновлений в реальном времени (только для охраны)
+// Токен передается через query параметр, так как EventSource не поддерживает заголовки
+router.get('/events', (req: express.Request, res: Response, next: express.NextFunction) => {
+  // Проверяем токен из query параметра
+  const token = req.query.token as string;
+  if (!token) {
+    return res.status(401).json({ error: 'Токен не предоставлен' });
+  }
+
+  // Временно добавляем токен в заголовок для middleware
+  req.headers.authorization = `Bearer ${token}`;
+  next();
+}, authenticate, requireRole(['security', 'admin']), (req: AuthRequest, res: Response) => {
+  // Устанавливаем заголовки для SSE
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Отключаем буферизацию для nginx
+
+  // Добавляем клиента в список подключенных
+  addClient(res);
+
+  // Отправляем ping каждые 30 секунд для поддержания соединения
+  const pingInterval = setInterval(() => {
+    try {
+      res.write(': ping\n\n');
+    } catch (error) {
+      clearInterval(pingInterval);
+    }
+  }, 30000);
+
+  // Очистка при отключении
+  req.on('close', () => {
+    clearInterval(pingInterval);
+  });
+});
 
 // Получить все заявки (для охраны и админа)
 router.get('/all', authenticate, requireRole(['security', 'admin']), async (req: AuthRequest, res: Response) => {
@@ -132,6 +170,10 @@ router.post(
       );
 
       const pass = await dbGet('SELECT * FROM passes WHERE id = $1', [result.rows?.[0]?.id]) as any;
+      
+      // Отправляем событие о новой заявке через SSE
+      broadcastEvent('new-pass', { message: 'Новая заявка создана', passId: pass.id });
+      
       res.status(201).json(pass);
     } catch (error) {
       console.error('Ошибка создания заявки:', error);
@@ -230,6 +272,9 @@ router.put(
         JOIN users u ON p."userId" = u.id
         WHERE p.id = $1
       `, [req.params.id]) as any;
+      
+      // Отправляем событие об обновлении заявки через SSE
+      broadcastEvent('pass-updated', { message: 'Заявка обновлена', passId: updatedPass.id });
       
       res.json(updatedPass);
     } catch (error) {

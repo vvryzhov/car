@@ -53,16 +53,44 @@ const SecurityDashboard = () => {
     fetchPasses();
   }, [fetchPasses]);
 
-  // Автоматическое обновление списка каждые 30 секунд
+  // Подключение к SSE для получения обновлений в реальном времени
   useEffect(() => {
-    // Не обновляем, если открыто модальное окно редактирования
+    // Не подключаемся, если открыто модальное окно редактирования
     if (editingPass) return;
 
-    const interval = setInterval(() => {
-      fetchPasses(false); // false - не показывать loading при автообновлении
-    }, 30000); // 30 секунд
+    const token = localStorage.getItem('token');
+    if (!token) return;
 
-    return () => clearInterval(interval);
+    // Используем EventSource с токеном в URL параметре
+    const eventSource = new EventSource(`/api/passes/events?token=${encodeURIComponent(token)}`);
+
+    // Обработка события новой заявки
+    eventSource.addEventListener('new-pass', () => {
+      console.log('Получено событие: новая заявка');
+      fetchPasses(false); // Обновляем список без показа loading
+    });
+
+    // Обработка события обновления заявки
+    eventSource.addEventListener('pass-updated', () => {
+      console.log('Получено событие: заявка обновлена');
+      fetchPasses(false); // Обновляем список без показа loading
+    });
+
+    // Обработка подключения
+    eventSource.onopen = () => {
+      console.log('SSE подключен');
+    };
+
+    // Обработка ошибок
+    eventSource.onerror = (error) => {
+      console.error('Ошибка SSE соединения:', error);
+      // EventSource автоматически переподключается при ошибках
+    };
+
+    // Очистка при размонтировании или при открытии модального окна
+    return () => {
+      eventSource.close();
+    };
   }, [fetchPasses, editingPass]);
 
   const clearFilters = () => {
