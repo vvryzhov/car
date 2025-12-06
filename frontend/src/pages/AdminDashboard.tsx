@@ -263,6 +263,40 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleSendResetLink = async (userId: number, email: string) => {
+    if (!window.confirm(`Отправить ссылку на сброс пароля пользователю ${email}?`)) {
+      return;
+    }
+
+    try {
+      const response = await api.post(`/users/${userId}/send-reset-link`);
+      alert(response.data.message || 'Ссылка на сброс пароля отправлена');
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Ошибка отправки ссылки');
+    }
+  };
+
+  const handleBulkSendResetLink = async () => {
+    if (selectedUsers.length === 0) {
+      alert('Выберите пользователей для отправки ссылки');
+      return;
+    }
+
+    if (!window.confirm(`Отправить ссылку на сброс пароля ${selectedUsers.length} пользователям?`)) {
+      return;
+    }
+
+    try {
+      const response = await api.post('/users/bulk-send-reset-link', { userIds: selectedUsers });
+      alert(response.data.message || `Обработано: ${response.data.success}, Ошибок: ${response.data.errors?.length || 0}`);
+      if (response.data.errors && response.data.errors.length > 0) {
+        console.error('Ошибки отправки:', response.data.errors);
+      }
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Ошибка массовой отправки ссылок');
+    }
+  };
+
   return (
     <div className="app">
       <div className="header">
@@ -313,9 +347,14 @@ const AdminDashboard = () => {
             {activeTab === 'users' && (
               <div style={{ display: 'flex', gap: '10px' }}>
                 {selectedUsers.length > 0 && (
-                  <button className="btn btn-danger" onClick={handleBulkDelete}>
-                    Удалить выбранных ({selectedUsers.length})
-                  </button>
+                  <>
+                    <button className="btn btn-success" onClick={handleBulkSendResetLink}>
+                      Отправить ссылку на сброс ({selectedUsers.length})
+                    </button>
+                    <button className="btn btn-danger" onClick={handleBulkDelete}>
+                      Удалить выбранных ({selectedUsers.length})
+                    </button>
+                  </>
                 )}
                 <button className="btn btn-secondary" onClick={() => setShowBulkUpload(!showBulkUpload)}>
                   {showBulkUpload ? 'Отменить загрузку' : 'Загрузить из CSV'}
@@ -526,6 +565,13 @@ const AdminDashboard = () => {
                             style={{ padding: '5px 10px', fontSize: '14px' }}
                           >
                             Сменить пароль
+                          </button>
+                          <button
+                            className="btn btn-success"
+                            onClick={() => handleSendResetLink(u.id, u.email)}
+                            style={{ padding: '5px 10px', fontSize: '14px' }}
+                          >
+                            Отправить ссылку на сброс
                           </button>
                           <button
                             className="btn btn-danger"

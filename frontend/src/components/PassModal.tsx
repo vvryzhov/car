@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { format } from 'date-fns';
 import { carBrands } from '../data/carBrands';
+import { getBrandByAlias, searchBrands } from '../data/carBrandAliases';
 import { validateVehicleNumber } from '../utils/vehicleNumberValidator';
 
 interface Plot {
@@ -108,12 +109,11 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
     }
   }, [selectedPlotId, user.plots]);
 
-  // Фильтруем марки при вводе
+  // Фильтруем марки при вводе (включая русские алиасы)
   useEffect(() => {
     if (vehicleBrand.trim().length > 0) {
-      const filtered = carBrands.filter(brand =>
-        brand.toLowerCase().includes(vehicleBrand.toLowerCase())
-      ).slice(0, 5); // Показываем максимум 5 подсказок
+      // Используем функцию поиска с поддержкой алиасов
+      const filtered = searchBrands(vehicleBrand, carBrands);
       setBrandSuggestions(filtered);
       setShowSuggestions(filtered.length > 0);
     } else {
@@ -146,9 +146,16 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
       // Если адрес пустой, но участок выбран, используем номер участка как адрес
       const finalAddress = address && address.trim() !== '' ? address.trim() : (plotNumber || '');
       
+      // Проверяем, есть ли алиас для введенной марки
+      let finalBrand = vehicleBrand.trim();
+      const aliasBrand = getBrandByAlias(finalBrand);
+      if (aliasBrand) {
+        finalBrand = aliasBrand;
+      }
+      
       const data = {
         vehicleType,
-        vehicleBrand: vehicleBrand.trim(),
+        vehicleBrand: finalBrand,
         vehicleNumber,
         entryDate,
         address: finalAddress,

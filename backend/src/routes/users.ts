@@ -761,6 +761,154 @@ router.post(
   }
 );
 
+// Принудительная отправка ссылки на сброс пароля (только для админа)
+router.post(
+  '/:id/send-reset-link',
+  authenticate,
+  requireRole(['admin']),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: 'Некорректный ID пользователя' });
+      }
+
+      const user = await dbGet('SELECT email FROM users WHERE id = $1', [userId]) as any;
+      if (!user) {
+        return res.status(404).json({ error: 'Пользователь не найден' });
+      }
+
+      // Генерируем токен
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 1); // Токен действителен 1 час
+
+      // Удаляем старые токены для этого email
+      await dbRun('DELETE FROM password_reset_tokens WHERE email = $1', [user.email]);
+
+      // Сохраняем новый токен
+      await dbRun(
+        'INSERT INTO password_reset_tokens (email, token, "expiresAt") VALUES ($1, $2, $3)',
+        [user.email, token, expiresAt]
+      );
+
+      // Отправляем email
+      const { getSMTPConfig } = await import('../services/email');
+      const smtpConfig = await getSMTPConfig();
+      const frontendUrl = smtpConfig?.frontend_url || process.env.FRONTEND_URL || 'http://localhost:8080';
+      const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+      
+      const emailResult = await sendPasswordResetEmail(user.email, token, resetUrl);
+      
+      if (emailResult.success) {
+        res.json({ message: `Ссылка на сброс пароля отправлена на ${user.email}` });
+      } else {
+        res.status(500).json({ 
+          error: 'Ошибка отправки письма',
+          details: emailResult.error 
+        });
+      }
+    } catch (error) {
+      console.error('Ошибка отправки ссылки на сброс пароля:', error);
+      res.status(500).json({ error: 'Ошибка сервера' });
+    }
+  }
+);
+
+// Массовая отправка ссылок на сброс пароля (только для админа)
+router.post(
+  '/bulk-send-reset-link',
+  authenticate,
+  requireRole(['admin']),
+  [
+    body('userIds').isArray().withMessage('userIds должен быть массивом'),
+    body('userIds.*').isInt().withMessage('Каждый ID должен быть числом'),
+  ],
+  async (req: AuthRequest, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const { userIds } = req.body;
+
+      if (!Array.isArray(userIds) || userIds.length === 0) {
+        return res.status(400).json({ error: 'Необходимо указать хотя бы одного пользователя' });
+      }
+
+      const results = {
+        success: 0,
+        errors: [] as Array<{ userId: number; email: string; error: string }>,
+      };
+
+      const { getSMTPConfig } = await import('../services/email');
+      const smtpConfig = await getSMTPConfig();
+      const frontendUrl = smtpConfig?.frontend_url || process.env.FRONTEND_URL || 'http://localhost:8080';
+
+      // Обрабатываем каждого пользователя
+      for (const userId of userIds) {
+        try {
+          const user = await dbGet('SELECT email FROM users WHERE id = $1', [userId]) as any;
+          
+          if (!user) {
+            results.errors.push({
+              userId,
+              email: 'N/A',
+              error: 'Пользователь не найден',
+            });
+            continue;
+          }
+
+          // Генерируем токен
+          const token = crypto.randomBytes(32).toString('hex');
+          const expiresAt = new Date();
+          expiresAt.setHours(expiresAt.getHours() + 1);
+
+          // Удаляем старые токены для этого email
+          await dbRun('DELETE FROM password_reset_tokens WHERE email = $1', [user.email]);
+
+          // Сохраняем новый токен
+          await dbRun(
+            'INSERT INTO password_reset_tokens (email, token, "expiresAt") VALUES ($1, $2, $3)',
+            [user.email, token, expiresAt]
+          );
+
+          // Отправляем email
+          const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+          const emailResult = await sendPasswordResetEmail(user.email, token, resetUrl);
+
+          if (emailResult.success) {
+            results.success++;
+          } else {
+            results.errors.push({
+              userId,
+              email: user.email,
+              error: emailResult.error || 'Ошибка отправки письма',
+            });
+          }
+        } catch (error: any) {
+          results.errors.push({
+            userId,
+            email: 'N/A',
+            error: error.message || 'Ошибка обработки пользователя',
+          });
+        }
+      }
+
+      res.json({
+        message: `Обработано: ${userIds.length}, Успешно: ${results.success}, Ошибок: ${results.errors.length}`,
+        success: results.success,
+        errors: results.errors,
+      });
+    } catch (error) {
+      console.error('Ошибка массовой отправки ссылок на сброс пароля:', error);
+      res.status(500).json({ error: 'Ошибка сервера' });
+    }
+  }
+);
+
 // Удалить пользователя (только для админа)
 router.delete('/:id', authenticate, requireRole(['admin']), async (req: AuthRequest, res: Response) => {
   try {
