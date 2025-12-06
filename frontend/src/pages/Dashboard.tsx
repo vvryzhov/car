@@ -156,22 +156,28 @@ const Dashboard = () => {
                       </span>
                     </td>
                     <td data-label="Действия">
-                      <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                        <button
-                          className="btn btn-secondary"
-                          onClick={() => handleEditPass(pass)}
-                          style={{ padding: '5px 10px', fontSize: '14px' }}
-                        >
-                          Редактировать
-                        </button>
-                        <button
-                          className="btn btn-danger"
-                          onClick={() => handleDeletePass(pass.id)}
-                          style={{ padding: '5px 10px', fontSize: '14px' }}
-                        >
-                          Удалить
-                        </button>
-                      </div>
+                      {pass.status === 'activated' ? (
+                        <span style={{ color: '#666', fontSize: '14px' }}>
+                          Заявка завершена
+                        </span>
+                      ) : (
+                        <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                          <button
+                            className="btn btn-secondary"
+                            onClick={() => handleEditPass(pass)}
+                            style={{ padding: '5px 10px', fontSize: '14px' }}
+                          >
+                            Редактировать
+                          </button>
+                          <button
+                            className="btn btn-danger"
+                            onClick={() => handleDeletePass(pass.id)}
+                            style={{ padding: '5px 10px', fontSize: '14px' }}
+                          >
+                            Удалить
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}

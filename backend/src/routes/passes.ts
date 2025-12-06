@@ -171,6 +171,11 @@ router.put(
         return res.status(403).json({ error: 'Доступ запрещен' });
       }
 
+      // Если заявка со статусом "activated" (Заехал), пользователи и прорабы не могут её редактировать
+      if (pass.status === 'activated' && (req.user!.role === 'user' || req.user!.role === 'foreman')) {
+        return res.status(403).json({ error: 'Нельзя редактировать заявку со статусом "Заехал"' });
+      }
+
       const { 
         vehicleType,
         vehicleBrand,
@@ -246,6 +251,11 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     // Проверяем, что пользователь имеет доступ к этой заявке
     if (req.user!.role !== 'admin' && pass.userId !== req.user!.id) {
       return res.status(403).json({ error: 'Доступ запрещен' });
+    }
+
+    // Если заявка со статусом "activated" (Заехал), пользователи и прорабы не могут её удалять
+    if (pass.status === 'activated' && (req.user!.role === 'user' || req.user!.role === 'foreman')) {
+      return res.status(403).json({ error: 'Нельзя удалить заявку со статусом "Заехал"' });
     }
 
     // Мягкое удаление - устанавливаем deletedAt
