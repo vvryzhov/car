@@ -68,7 +68,7 @@ const SecurityPassModal = ({ pass, onClose, onSave }: SecurityPassModalProps) =>
     try {
       const data = {
         vehicleType,
-        vehicleBrand: vehicleBrand || null,
+        vehicleBrand: vehicleBrand.trim() || '',
         vehicleNumber,
         entryDate,
         address,
@@ -142,6 +142,7 @@ const SecurityPassModal = ({ pass, onClose, onSave }: SecurityPassModalProps) =>
               id="vehicleBrand"
               value={vehicleBrand}
               onChange={(e) => setVehicleBrand(e.target.value)}
+              required
               placeholder="Например: Toyota, BMW, Газель"
             />
           </div>

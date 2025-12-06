@@ -103,6 +103,7 @@ router.post(
   requireRole(['user', 'admin', 'foreman']),
   [
     body('vehicleType').isIn(['грузовой', 'легковой']).withMessage('Тип транспорта должен быть грузовой или легковой'),
+    body('vehicleBrand').notEmpty().withMessage('Марка авто обязательна'),
     body('vehicleNumber').notEmpty().withMessage('Номер авто обязателен'),
     body('entryDate').notEmpty().withMessage('Дата въезда обязательна'),
     body('address').notEmpty().withMessage('Адрес обязателен'),
@@ -137,6 +138,7 @@ router.put(
   authenticate,
   [
     body('vehicleType').optional().isIn(['грузовой', 'легковой']).withMessage('Тип транспорта должен быть грузовой или легковой'),
+    body('vehicleBrand').optional().notEmpty().withMessage('Марка авто не может быть пустой'),
     body('vehicleNumber').optional().notEmpty().withMessage('Номер авто не может быть пустым'),
     body('entryDate').optional().notEmpty().withMessage('Дата въезда не может быть пустой'),
     body('address').optional().notEmpty().withMessage('Адрес не может быть пустым'),
