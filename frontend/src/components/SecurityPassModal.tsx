@@ -83,6 +83,14 @@ const SecurityPassModal = ({ pass, onClose, onSave }: SecurityPassModalProps) =>
     setError('');
     setLoading(true);
 
+    // Валидация номера автомобиля
+    const numberValidation = validateVehicleNumber(vehicleNumber);
+    if (!numberValidation.valid) {
+      setError(numberValidation.error || 'Некорректный формат номера');
+      setLoading(false);
+      return;
+    }
+
     try {
       const data = {
         vehicleType,
