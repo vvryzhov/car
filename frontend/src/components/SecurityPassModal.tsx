@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
+import { carBrands } from '../data/carBrands';
 
 interface Pass {
   id: number;
@@ -140,11 +141,17 @@ const SecurityPassModal = ({ pass, onClose, onSave }: SecurityPassModalProps) =>
             <input
               type="text"
               id="vehicleBrand"
+              list="carBrandsSecurity"
               value={vehicleBrand}
               onChange={(e) => setVehicleBrand(e.target.value)}
               required
-              placeholder="Например: Toyota, BMW, Газель"
+              placeholder="Начните вводить марку или выберите из списка"
             />
+            <datalist id="carBrandsSecurity">
+              {carBrands.map((brand) => (
+                <option key={brand} value={brand} />
+              ))}
+            </datalist>
           </div>
 
           <div className="form-group">

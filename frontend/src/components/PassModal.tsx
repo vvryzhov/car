@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { format } from 'date-fns';
+import { carBrands } from '../data/carBrands';
 
 interface Plot {
   id: number;
@@ -177,11 +178,17 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
             <input
               type="text"
               id="vehicleBrand"
+              list="carBrands"
               value={vehicleBrand}
               onChange={(e) => setVehicleBrand(e.target.value)}
               required
-              placeholder="Например: Toyota, BMW, Газель"
+              placeholder="Начните вводить марку или выберите из списка"
             />
+            <datalist id="carBrands">
+              {carBrands.map((brand) => (
+                <option key={brand} value={brand} />
+              ))}
+            </datalist>
           </div>
 
           <div className="form-group">
