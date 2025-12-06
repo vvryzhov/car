@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { format } from 'date-fns';
 import { carBrands } from '../data/carBrands';
+import { validateVehicleNumber } from '../utils/vehicleNumberValidator';
 
 interface Plot {
   id: number;
@@ -133,6 +134,14 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
       return;
     }
 
+    // Валидация номера автомобиля
+    const numberValidation = validateVehicleNumber(vehicleNumber);
+    if (!numberValidation.valid) {
+      setError(numberValidation.error || 'Некорректный формат номера');
+      setLoading(false);
+      return;
+    }
+
     try {
       // Если адрес пустой, но участок выбран, используем номер участка как адрес
       const finalAddress = address && address.trim() !== '' ? address.trim() : (plotNumber || '');
@@ -259,10 +268,31 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
               type="text"
               id="vehicleNumber"
               value={vehicleNumber}
-              onChange={(e) => setVehicleNumber(e.target.value)}
+              onChange={(e) => {
+                setVehicleNumber(e.target.value);
+                // Очищаем ошибку при вводе
+                if (error && error.includes('номер')) {
+                  setError('');
+                }
+              }}
+              onBlur={() => {
+                // Валидация при потере фокуса
+                if (vehicleNumber.trim()) {
+                  const validation = validateVehicleNumber(vehicleNumber);
+                  if (!validation.valid) {
+                    setError(validation.error || 'Некорректный формат номера');
+                  }
+                }
+              }}
               required
-              placeholder="А123БВ777"
+              placeholder="А123БВ777 (РФ), ABC1234 (EU/US)"
+              style={{
+                textTransform: 'uppercase',
+              }}
             />
+            <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+              Форматы: РФ (А123БВ777), Украина (АА1234БВ), EU/US (ABC1234)
+            </small>
           </div>
 
           <div className="form-group">

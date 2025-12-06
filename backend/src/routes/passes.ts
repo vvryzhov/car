@@ -2,6 +2,7 @@ import express, { Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { dbGet, dbRun, dbAll } from '../database';
 import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
+import { validateVehicleNumber } from '../utils/vehicleNumberValidator';
 
 const router = express.Router();
 
@@ -116,6 +117,12 @@ router.post(
     }
 
     const { vehicleType, vehicleBrand, vehicleNumber, entryDate, address, plotNumber, comment } = req.body;
+
+    // Валидация номера автомобиля
+    const numberValidation = validateVehicleNumber(vehicleNumber);
+    if (!numberValidation.valid) {
+      return res.status(400).json({ error: numberValidation.error });
+    }
 
     try {
       const result = await dbRun(
