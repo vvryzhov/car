@@ -169,13 +169,15 @@ const Dashboard = () => {
                           >
                             Редактировать
                           </button>
-                          <button
-                            className="btn btn-danger"
-                            onClick={() => handleDeletePass(pass.id)}
-                            style={{ padding: '5px 10px', fontSize: '14px' }}
-                          >
-                            Удалить
-                          </button>
+                          {pass.status !== 'activated' && (
+                            <button
+                              className="btn btn-danger"
+                              onClick={() => handleDeletePass(pass.id)}
+                              style={{ padding: '5px 10px', fontSize: '14px' }}
+                            >
+                              Удалить
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>
