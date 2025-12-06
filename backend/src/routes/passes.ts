@@ -48,7 +48,7 @@ router.get('/events', (req: express.Request, res: Response, next: express.NextFu
 // Получить все заявки (для охраны и админа)
 router.get('/all', authenticate, requireRole(['security', 'admin']), async (req: AuthRequest, res: Response) => {
   try {
-    const { date, vehicleType, includeDeleted, userId, plotNumber } = req.query;
+    const { date, vehicleType, includeDeleted, userId, plotNumber, status } = req.query;
     let query = `
       SELECT p.*, u."fullName", u.phone, p."plotNumber"
       FROM passes p
@@ -71,6 +71,12 @@ router.get('/all', authenticate, requireRole(['security', 'admin']), async (req:
     if (vehicleType) {
       query += ` AND p."vehicleType" = $${paramIndex}`;
       params.push(vehicleType);
+      paramIndex++;
+    }
+
+    if (status) {
+      query += ` AND p.status = $${paramIndex}`;
+      params.push(status);
       paramIndex++;
     }
 

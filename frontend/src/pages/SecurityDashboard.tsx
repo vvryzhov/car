@@ -27,7 +27,10 @@ const SecurityDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [filterDate, setFilterDate] = useState('');
   const [filterVehicleType, setFilterVehicleType] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterPlotNumber, setFilterPlotNumber] = useState('');
   const [editingPass, setEditingPass] = useState<Pass | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState<number | null>(null);
 
   const fetchPasses = useCallback(async (showLoading = true) => {
     try {
@@ -37,6 +40,8 @@ const SecurityDashboard = () => {
       const params: any = {};
       if (filterDate) params.date = filterDate;
       if (filterVehicleType) params.vehicleType = filterVehicleType;
+      if (filterStatus) params.status = filterStatus;
+      if (filterPlotNumber) params.plotNumber = filterPlotNumber;
 
       const response = await api.get('/passes/all', { params });
       setPasses(response.data);
@@ -47,7 +52,7 @@ const SecurityDashboard = () => {
         setLoading(false);
       }
     }
-  }, [filterDate, filterVehicleType]);
+  }, [filterDate, filterVehicleType, filterStatus, filterPlotNumber]);
 
   useEffect(() => {
     fetchPasses();
@@ -96,6 +101,32 @@ const SecurityDashboard = () => {
   const clearFilters = () => {
     setFilterDate('');
     setFilterVehicleType('');
+    setFilterStatus('');
+    setFilterPlotNumber('');
+  };
+
+  const handleStatusToggle = async (pass: Pass) => {
+    if (updatingStatus === pass.id) return; // Предотвращаем двойные клики
+    
+    setUpdatingStatus(pass.id);
+    
+    try {
+      // Переключаем статус: pending <-> activated
+      const newStatus = pass.status === 'pending' ? 'activated' : 'pending';
+      
+      await api.put(`/passes/${pass.id}`, {
+        ...pass,
+        status: newStatus,
+      });
+      
+      // Обновляем список
+      fetchPasses(false);
+    } catch (error) {
+      console.error('Ошибка изменения статуса:', error);
+      alert('Ошибка изменения статуса заявки');
+    } finally {
+      setUpdatingStatus(null);
+    }
   };
 
   const handleEditPass = (pass: Pass) => {
@@ -150,6 +181,29 @@ const SecurityDashboard = () => {
                 <option value="легковой">Легковой</option>
               </select>
             </div>
+            <div className="form-group">
+              <label htmlFor="filterStatus">Статус</label>
+              <select
+                id="filterStatus"
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+              >
+                <option value="">Все</option>
+                <option value="pending">Ожидает</option>
+                <option value="activated">Заехал</option>
+                <option value="rejected">Отклонено</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label htmlFor="filterPlotNumber">Участок</label>
+              <input
+                type="text"
+                id="filterPlotNumber"
+                value={filterPlotNumber}
+                onChange={(e) => setFilterPlotNumber(e.target.value)}
+                placeholder="Номер участка"
+              />
+            </div>
             <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end' }}>
               <button className="btn btn-secondary" onClick={clearFilters}>
                 Сбросить фильтры
@@ -196,11 +250,26 @@ const SecurityDashboard = () => {
                     <td data-label="Комментарий">{pass.comment || '-'}</td>
                     <td data-label="Комментарий охраны">{pass.securityComment || '-'}</td>
                     <td data-label="Статус">
-                      <span className={`badge badge-${pass.status}`}>
-                        {pass.status === 'pending' ? 'Ожидает' : 
-                         pass.status === 'activated' ? 'Заехал' : 
-                         'Отклонено'}
-                      </span>
+                      {pass.status === 'pending' || pass.status === 'activated' ? (
+                        <button
+                          className={`btn ${pass.status === 'pending' ? 'btn-warning' : 'btn-success'}`}
+                          onClick={() => handleStatusToggle(pass)}
+                          disabled={updatingStatus === pass.id}
+                          style={{
+                            padding: '5px 10px',
+                            fontSize: '14px',
+                            minWidth: '100px',
+                            cursor: updatingStatus === pass.id ? 'wait' : 'pointer',
+                          }}
+                          title={pass.status === 'pending' ? 'Нажмите, чтобы отметить как "Заехал"' : 'Нажмите, чтобы вернуть статус "Ожидает"'}
+                        >
+                          {updatingStatus === pass.id ? '...' : (pass.status === 'pending' ? 'Ожидает → Заехал' : 'Заехал → Ожидает')}
+                        </button>
+                      ) : (
+                        <span className={`badge badge-${pass.status}`}>
+                          Отклонено
+                        </span>
+                      )}
                     </td>
                     <td data-label="Действия">
                       <button
