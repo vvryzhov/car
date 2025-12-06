@@ -257,4 +257,92 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   }
 });
 
+// Экспорт заявок в Excel
+router.get('/export/excel', authenticate, requireRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { date, vehicleType, userId, plotNumber } = req.query;
+    
+    let query = `
+      SELECT 
+        p.id,
+        u."fullName" as "ФИО",
+        u.phone as "Телефон",
+        p."plotNumber" as "Участок",
+        p."vehicleType" as "Тип транспорта",
+        p."vehicleBrand" as "Марка авто",
+        p."vehicleNumber" as "Номер авто",
+        p."entryDate" as "Дата въезда",
+        p.address as "Адрес",
+        p.comment as "Комментарий",
+        p."securityComment" as "Комментарий охраны",
+        CASE 
+          WHEN p.status = 'pending' THEN 'Ожидает'
+          WHEN p.status = 'activated' THEN 'Заехал'
+          WHEN p.status = 'rejected' THEN 'Отклонено'
+          ELSE p.status
+        END as "Статус",
+        p."createdAt" as "Дата создания"
+      FROM passes p
+      JOIN users u ON p."userId" = u.id
+      WHERE p."deletedAt" IS NULL
+    `;
+    
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (date) {
+      query += ` AND p."entryDate" = $${paramIndex}`;
+      params.push(date);
+      paramIndex++;
+    }
+
+    if (vehicleType) {
+      query += ` AND p."vehicleType" = $${paramIndex}`;
+      params.push(vehicleType);
+      paramIndex++;
+    }
+
+    if (userId) {
+      query += ` AND p."userId" = $${paramIndex}`;
+      params.push(parseInt(userId as string));
+      paramIndex++;
+    }
+
+    if (plotNumber) {
+      query += ` AND p."plotNumber" ILIKE $${paramIndex}`;
+      params.push(`%${plotNumber}%`);
+      paramIndex++;
+    }
+
+    query += ' ORDER BY p."entryDate" DESC, p."createdAt" DESC';
+
+    const passes = await dbAll(query, params) as any[];
+
+    // Форматируем даты для Excel
+    const formattedPasses = passes.map(pass => ({
+      ...pass,
+      'Дата въезда': pass['Дата въезда'] ? new Date(pass['Дата въезда']).toLocaleDateString('ru-RU') : '',
+      'Дата создания': pass['Дата создания'] ? new Date(pass['Дата создания']).toLocaleString('ru-RU') : '',
+    }));
+
+    // Создаем книгу Excel
+    const worksheet = XLSX.utils.json_to_sheet(formattedPasses);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Заявки');
+
+    // Генерируем буфер
+    const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+    // Устанавливаем заголовки для скачивания файла
+    const filename = `заявки_${new Date().toISOString().split('T')[0]}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    
+    res.send(excelBuffer);
+  } catch (error) {
+    console.error('Ошибка экспорта заявок:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 export default router;
