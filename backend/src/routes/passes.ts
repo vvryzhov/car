@@ -118,6 +118,12 @@ router.post(
     const { vehicleType, vehicleBrand, vehicleNumber, entryDate, address, plotNumber, comment } = req.body;
 
     try {
+      // Проверяем, что у пользователя указан телефон
+      const user = await dbGet('SELECT phone FROM users WHERE id = $1', [req.user!.id]) as any;
+      if (!user || !user.phone || user.phone.trim() === '') {
+        return res.status(400).json({ error: 'Для создания заявки необходимо указать телефон в профиле' });
+      }
+
       const result = await dbRun(
         'INSERT INTO passes ("userId", "vehicleType", "vehicleBrand", "vehicleNumber", "entryDate", address, "plotNumber", comment) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
         [req.user!.id, vehicleType, vehicleBrand || null, vehicleNumber, entryDate, address, plotNumber, comment || null]

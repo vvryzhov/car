@@ -18,3 +18,13 @@ export const validatePassword = (password: string): { valid: boolean; error?: st
   return { valid: true };
 };
 
+
+
+
+
+
+
+
+
+
+

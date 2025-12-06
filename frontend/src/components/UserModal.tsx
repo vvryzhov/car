@@ -39,6 +39,7 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
   const [deactivationDate, setDeactivationDate] = useState('');
   const [deactivate, setDeactivate] = useState(false);
   const [plots, setPlots] = useState<Plot[]>([]);
+  const [originalPlots, setOriginalPlots] = useState<Plot[]>([]); // Сохраняем исходные участки для сравнения
   const [editingPlotIndex, setEditingPlotIndex] = useState<number | null>(null);
   const [editingPlotAddress, setEditingPlotAddress] = useState('');
   const [editingPlotNumber, setEditingPlotNumber] = useState('');
@@ -70,7 +71,9 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
     if (!user?.id) return;
     try {
       const response = await api.get(`/users/${user.id}/plots`);
-      setPlots(response.data || []);
+      const plotsData = response.data || [];
+      setPlots(plotsData);
+      setOriginalPlots(plotsData); // Сохраняем исходные участки
     } catch (error) {
       console.error('Ошибка загрузки участков:', error);
     }
@@ -178,13 +181,23 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
           data.deactivationDate = null;
         }
         data.deactivate = deactivate;
-        // Отправляем участки для ролей user и foreman, или если админ редактирует
-        if (role === 'user' || role === 'foreman' || (isAdmin && role !== 'security' && role !== 'admin')) {
-          data.plots = plots.map(p => ({ 
-            id: p.id && p.id > 1000000 ? p.id : null, // Отправляем ID только для существующих участков
-            address: p.address || '', 
-            plotNumber: p.plotNumber 
-          }));
+        // Отправляем участки только если они были изменены
+        const shouldSendPlots = role === 'user' || role === 'foreman' || (isAdmin && role !== 'security' && role !== 'admin');
+        if (shouldSendPlots) {
+          // Проверяем, изменились ли участки
+          const plotsChanged = JSON.stringify(plots) !== JSON.stringify(originalPlots);
+          if (plotsChanged) {
+            // Отправляем участки только если они изменились
+            data.plots = plots.map(p => ({ 
+              id: p.id && p.id > 1000000 ? p.id : null, // Отправляем ID только для существующих участков
+              address: p.address || '', 
+              plotNumber: p.plotNumber 
+            }));
+          }
+          // Если участки не изменились, не отправляем их вообще (undefined)
+        } else if (role === 'security' || role === 'admin') {
+          // Для security и admin отправляем пустой массив, чтобы удалить участки
+          data.plots = [];
         }
         console.log('Отправка данных пользователя с участками:', data);
         const response = await api.put(`/users/${user.id}`, data);

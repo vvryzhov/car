@@ -431,8 +431,10 @@ router.put(
         );
       }
 
-      // Обновляем участки, если они переданы
-      if (plots !== undefined && Array.isArray(plots)) {
+      // Обновляем участки, если они переданы и массив не пустой
+      // Важно: обновляем участки только если массив явно передан и не пустой
+      // Если массив не передан (undefined), участки не трогаем
+      if (plots !== undefined && Array.isArray(plots) && plots.length > 0) {
         console.log('Обновление участков для пользователя', req.params.id, 'plots:', plots);
         
         // Получаем текущие участки
@@ -443,7 +445,8 @@ router.put(
 
         console.log('Текущие участки:', currentPlots);
 
-        // Удаляем участки, которых нет в новом списке
+        // Удаляем участки, которых нет в новом списке (только если они были явно удалены)
+        // Проверяем по ID - если участок был в базе, но его нет в новом списке, удаляем
         for (const currentPlot of currentPlots) {
           const exists = plots.some((p: any) => p.id && p.id === currentPlot.id);
           if (!exists) {
@@ -488,6 +491,15 @@ router.put(
             }
           }
         }
+      } else if (plots !== undefined && Array.isArray(plots) && plots.length === 0) {
+        // Если передан пустой массив, это означает, что нужно удалить все участки
+        // Но только для ролей, которые не должны иметь участки (security, admin)
+        const targetUser = await dbGet('SELECT role FROM users WHERE id = $1', [req.params.id]) as any;
+        if (targetUser && (targetUser.role === 'security' || targetUser.role === 'admin')) {
+          console.log('Удаление всех участков для роли', targetUser.role);
+          await dbRun('DELETE FROM user_plots WHERE "userId" = $1', [req.params.id]);
+        }
+        // Для других ролей пустой массив игнорируем (не удаляем участки)
       }
 
       // Получаем обновленного пользователя с участками
