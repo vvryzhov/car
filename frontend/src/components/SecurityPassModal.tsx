@@ -248,13 +248,13 @@ const SecurityPassModal = ({ pass, onClose, onSave }: SecurityPassModalProps) =>
                 }
               }}
               required
-              placeholder="А123БВ777 (РФ), ABC1234 (EU/US)"
+              placeholder="А123БВ777 (РФ), 123АВС01 (КЗ), 01А123ВС (УЗ)"
               style={{
                 textTransform: 'uppercase',
               }}
             />
             <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '4px' }}>
-              Форматы: РФ (А123БВ777), Украина (АА1234БВ), EU/US (ABC1234)
+              Форматы: РФ (А123БВ777), Казахстан (123АВС01), Узбекистан (01А123ВС)
             </small>
           </div>
 
