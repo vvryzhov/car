@@ -208,6 +208,7 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
         </div>
 
         <form onSubmit={handleSubmit}>
+          <div className="modal-form-content">
           <div className="form-group">
             <label htmlFor="vehicleType">Тип транспорта</label>
             <select
@@ -369,6 +370,7 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
           </div>
 
           {error && <div className="error">{error}</div>}
+          </div>
 
           <div className="modal-actions" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
             <button type="button" className="btn btn-secondary" onClick={onClose}>
