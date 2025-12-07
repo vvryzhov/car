@@ -65,6 +65,22 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
   const [brandSuggestions, setBrandSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
+  // Блокировка прокрутки body при открытом модальном окне
+  useEffect(() => {
+    const originalStyle = window.getComputedStyle(document.body).overflow;
+    document.body.classList.add('modal-open');
+    
+    return () => {
+      document.body.classList.remove('modal-open');
+      // Восстанавливаем прокрутку после небольшой задержки
+      setTimeout(() => {
+        if (!document.body.classList.contains('modal-open')) {
+          document.body.style.overflow = originalStyle;
+        }
+      }, 100);
+    };
+  }, []);
+
   useEffect(() => {
     if (pass) {
       setVehicleType(pass.vehicleType);
@@ -354,7 +370,7 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
 
           {error && <div className="error">{error}</div>}
 
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
+          <div className="modal-actions" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
             <button type="button" className="btn btn-secondary" onClick={onClose}>
               Отмена
             </button>
