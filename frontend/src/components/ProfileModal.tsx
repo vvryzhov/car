@@ -33,6 +33,13 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
+  
+  // Состояния для смены email с подтверждением
+  const [showEmailChange, setShowEmailChange] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [confirmationCode, setConfirmationCode] = useState('');
+  const [emailChangeStep, setEmailChangeStep] = useState<'input' | 'confirm'>('input');
+  const [emailChangeLoading, setEmailChangeLoading] = useState(false);
 
   useEffect(() => {
     // Загружаем участки только для ролей user и foreman
@@ -50,6 +57,45 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
     }
   };
 
+
+  const handleRequestEmailChange = async () => {
+    setError('');
+    setEmailChangeLoading(true);
+
+    try {
+      await api.post('/users/me/request-email-change', {
+        newEmail: newEmail.trim(),
+      });
+      setEmailChangeStep('confirm');
+      setError('');
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Ошибка отправки кода подтверждения');
+    } finally {
+      setEmailChangeLoading(false);
+    }
+  };
+
+  const handleConfirmEmailChange = async () => {
+    setError('');
+    setEmailChangeLoading(true);
+
+    try {
+      const response = await api.post('/users/me/confirm-email-change', {
+        code: confirmationCode.trim(),
+      });
+      setEmail(response.data.user.email);
+      setShowEmailChange(false);
+      setEmailChangeStep('input');
+      setNewEmail('');
+      setConfirmationCode('');
+      onSave(response.data.user);
+      setError('');
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Ошибка подтверждения смены email');
+    } finally {
+      setEmailChangeLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,9 +124,8 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
     setLoading(true);
 
     try {
-      // Обновляем email и телефон
+      // Обновляем только телефон (email меняется через отдельный механизм)
       const response = await api.put('/users/me', {
-        email,
         phone: phone.replace(/\D/g, ''), // Отправляем только цифры
       });
 
@@ -115,9 +160,133 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
               type="email"
               id="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
+              disabled
+              style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
             />
+            {/* Показываем кнопку смены email только для user и foreman */}
+            {(user.role === 'user' || user.role === 'foreman') && (
+              <>
+                {!showEmailChange ? (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setShowEmailChange(true);
+                      setEmailChangeStep('input');
+                      setNewEmail('');
+                      setConfirmationCode('');
+                      setError('');
+                    }}
+                    style={{ marginTop: '10px' }}
+                  >
+                    Изменить email
+                  </button>
+                ) : (
+                  <div style={{ marginTop: '15px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                    {emailChangeStep === 'input' ? (
+                      <>
+                        <label htmlFor="newEmail">Новый email</label>
+                        <input
+                          type="email"
+                          id="newEmail"
+                          value={newEmail}
+                          onChange={(e) => setNewEmail(e.target.value)}
+                          placeholder="example@mail.com"
+                          style={{ marginBottom: '10px' }}
+                        />
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={handleRequestEmailChange}
+                            disabled={emailChangeLoading || !newEmail.trim()}
+                          >
+                            {emailChangeLoading ? 'Отправка...' : 'Отправить код'}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => {
+                              setShowEmailChange(false);
+                              setNewEmail('');
+                              setError('');
+                            }}
+                          >
+                            Отмена
+                          </button>
+                        </div>
+                        <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '10px' }}>
+                          На новый email будет отправлен код подтверждения
+                        </small>
+                      </>
+                    ) : (
+                      <>
+                        <label htmlFor="confirmationCode">Код подтверждения</label>
+                        <input
+                          type="text"
+                          id="confirmationCode"
+                          value={confirmationCode}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                            setConfirmationCode(value);
+                          }}
+                          placeholder="000000"
+                          maxLength={6}
+                          style={{ 
+                            marginBottom: '10px',
+                            fontSize: '18px',
+                            letterSpacing: '5px',
+                            textAlign: 'center',
+                            fontFamily: 'monospace'
+                          }}
+                        />
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={handleConfirmEmailChange}
+                            disabled={emailChangeLoading || confirmationCode.length !== 6}
+                          >
+                            {emailChangeLoading ? 'Подтверждение...' : 'Подтвердить'}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => {
+                              setEmailChangeStep('input');
+                              setConfirmationCode('');
+                            }}
+                          >
+                            Назад
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => {
+                              setShowEmailChange(false);
+                              setEmailChangeStep('input');
+                              setNewEmail('');
+                              setConfirmationCode('');
+                              setError('');
+                            }}
+                          >
+                            Отмена
+                          </button>
+                        </div>
+                        <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '10px' }}>
+                          Код отправлен на {newEmail}. Код действителен 15 минут.
+                        </small>
+                      </>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+            {user.role !== 'user' && user.role !== 'foreman' && (
+              <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '5px' }}>
+                Администратор и охрана могут изменить email напрямую через администратора
+              </small>
+            )}
           </div>
 
           <div className="form-group">

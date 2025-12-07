@@ -190,6 +190,20 @@ export const initDatabase = async () => {
       )
     `);
 
+    // Таблица токенов подтверждения смены email
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS email_change_tokens (
+        id SERIAL PRIMARY KEY,
+        "userId" INTEGER NOT NULL,
+        "oldEmail" VARCHAR(255) NOT NULL,
+        "newEmail" VARCHAR(255) NOT NULL,
+        code VARCHAR(6) NOT NULL,
+        "expiresAt" TIMESTAMP NOT NULL,
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
     // Таблица участков пользователей (адрес и номер участка - единое целое)
     await dbRun(`
       CREATE TABLE IF NOT EXISTS user_plots (

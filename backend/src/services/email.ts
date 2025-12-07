@@ -128,3 +128,47 @@ export const sendPasswordResetEmail = async (email: string, token: string, reset
   return await sendEmail(email, 'Восстановление пароля', html);
 };
 
+export const sendEmailChangeConfirmationCode = async (newEmail: string, code: string): Promise<{ success: boolean; error?: string }> => {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .code-box { 
+          display: inline-block; 
+          padding: 15px 30px; 
+          background-color: #f8f9fa; 
+          border: 2px solid #007bff; 
+          border-radius: 5px; 
+          font-size: 24px; 
+          font-weight: bold; 
+          color: #007bff; 
+          letter-spacing: 5px;
+          margin: 20px 0;
+          text-align: center;
+        }
+        .footer { margin-top: 30px; font-size: 12px; color: #666; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h2>Подтверждение смены email</h2>
+        <p>Вы запросили изменение email адреса для вашей учетной записи.</p>
+        <p>Для подтверждения смены email введите следующий код подтверждения:</p>
+        <div class="code-box">${code}</div>
+        <p>Код действителен в течение 15 минут.</p>
+        <p>Если вы не запрашивали смену email, проигнорируйте это письмо.</p>
+        <div class="footer">
+          <p>С уважением,<br>Система управления пропусками</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return await sendEmail(newEmail, 'Подтверждение смены email', html);
+};
+

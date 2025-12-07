@@ -6,7 +6,7 @@ import crypto from 'crypto';
 import { body, validationResult } from 'express-validator';
 import { dbGet, dbRun, dbAll } from '../database';
 import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
-import { sendPasswordResetEmail } from '../services/email';
+import { sendPasswordResetEmail, sendEmailChangeConfirmationCode } from '../services/email';
 import { validatePassword } from '../utils/passwordValidator';
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -559,6 +559,135 @@ router.put(
   }
 );
 
+// Запрос на смену email (отправка кода подтверждения на новый email)
+router.post(
+  '/me/request-email-change',
+  authenticate,
+  [
+    body('newEmail').isEmail().withMessage('Некорректный email'),
+  ],
+  async (req: AuthRequest, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const { newEmail } = req.body;
+      
+      // Получаем текущего пользователя
+      const user = await dbGet('SELECT id, email, role FROM users WHERE id = $1', [req.user!.id]) as any;
+      if (!user) {
+        return res.status(404).json({ error: 'Пользователь не найден' });
+      }
+
+      // Проверяем, что это пользователь или прораб (админ и security могут менять email напрямую)
+      if (user.role !== 'user' && user.role !== 'foreman') {
+        return res.status(403).json({ error: 'Эта функция доступна только для пользователей и прорабов' });
+      }
+
+      // Проверяем, что новый email отличается от текущего
+      if (user.email.toLowerCase() === newEmail.toLowerCase()) {
+        return res.status(400).json({ error: 'Новый email совпадает с текущим' });
+      }
+
+      // Проверяем, что новый email не занят
+      const existingUser = await dbGet('SELECT id FROM users WHERE email = $1', [newEmail.toLowerCase()]);
+      if (existingUser) {
+        return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
+      }
+
+      // Генерируем 6-значный код подтверждения
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date();
+      expiresAt.setMinutes(expiresAt.getMinutes() + 15); // Код действителен 15 минут
+
+      // Удаляем старые токены для этого пользователя
+      await dbRun('DELETE FROM email_change_tokens WHERE "userId" = $1', [req.user!.id]);
+
+      // Сохраняем новый токен
+      await dbRun(
+        'INSERT INTO email_change_tokens ("userId", "oldEmail", "newEmail", code, "expiresAt") VALUES ($1, $2, $3, $4, $5)',
+        [req.user!.id, user.email, newEmail.toLowerCase(), code, expiresAt]
+      );
+
+      // Отправляем код на новый email
+      const emailResult = await sendEmailChangeConfirmationCode(newEmail.toLowerCase(), code);
+      if (!emailResult.success) {
+        console.error('Ошибка отправки кода подтверждения:', emailResult.error);
+        return res.status(500).json({ 
+          error: 'Ошибка отправки кода подтверждения',
+          details: emailResult.error 
+        });
+      }
+
+      res.json({ message: 'Код подтверждения отправлен на новый email адрес' });
+    } catch (error) {
+      console.error('Ошибка запроса смены email:', error);
+      res.status(500).json({ error: 'Ошибка сервера' });
+    }
+  }
+);
+
+// Подтверждение смены email по коду
+router.post(
+  '/me/confirm-email-change',
+  authenticate,
+  [
+    body('code').isLength({ min: 6, max: 6 }).withMessage('Код должен состоять из 6 цифр'),
+  ],
+  async (req: AuthRequest, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const { code } = req.body;
+
+      // Получаем токен подтверждения
+      const tokenRecord = await dbGet(
+        'SELECT * FROM email_change_tokens WHERE "userId" = $1 AND code = $2 AND "expiresAt" > NOW()',
+        [req.user!.id, code]
+      ) as any;
+
+      if (!tokenRecord) {
+        return res.status(400).json({ error: 'Недействительный или истекший код подтверждения' });
+      }
+
+      // Проверяем, что новый email все еще не занят
+      const existingUser = await dbGet('SELECT id FROM users WHERE email = $1', [tokenRecord.newEmail]);
+      if (existingUser) {
+        await dbRun('DELETE FROM email_change_tokens WHERE id = $1', [tokenRecord.id]);
+        return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
+      }
+
+      // Обновляем email пользователя
+      await dbRun(
+        'UPDATE users SET email = $1 WHERE id = $2',
+        [tokenRecord.newEmail, req.user!.id]
+      );
+
+      // Удаляем использованный токен
+      await dbRun('DELETE FROM email_change_tokens WHERE id = $1', [tokenRecord.id]);
+
+      // Получаем обновленного пользователя
+      const updatedUser = await dbGet(
+        'SELECT id, email, "fullName", phone, role FROM users WHERE id = $1',
+        [req.user!.id]
+      ) as any;
+
+      res.json({ 
+        message: 'Email успешно изменен',
+        user: updatedUser
+      });
+    } catch (error) {
+      console.error('Ошибка подтверждения смены email:', error);
+      res.status(500).json({ error: 'Ошибка сервера' });
+    }
+  }
+);
+
 // Обновить профиль пользователя (только свои данные, без ФИО, адреса и участка)
 router.put(
   '/me',
@@ -576,8 +705,19 @@ router.put(
     const { email, phone } = req.body;
 
     try {
-      // Проверяем, что email не занят другим пользователем (если меняется)
-      if (email !== undefined) {
+      // Получаем текущего пользователя для проверки роли
+      const currentUser = await dbGet('SELECT id, role FROM users WHERE id = $1', [req.user!.id]) as any;
+      
+      // Для пользователей и прорабов запрещаем прямую смену email
+      // Им нужно использовать механизм подтверждения через код
+      if (email !== undefined && (currentUser.role === 'user' || currentUser.role === 'foreman')) {
+        return res.status(403).json({ 
+          error: 'Для смены email необходимо подтверждение через код. Используйте /api/users/me/request-email-change' 
+        });
+      }
+
+      // Для админа и security можно менять email напрямую
+      if (email !== undefined && currentUser.role !== 'user' && currentUser.role !== 'foreman') {
         const existingUser = await dbGet('SELECT id FROM users WHERE email = $1 AND id != $2', [email, req.user!.id]);
         if (existingUser) {
           return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
