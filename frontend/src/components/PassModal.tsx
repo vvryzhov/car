@@ -372,7 +372,7 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
           {error && <div className="error">{error}</div>}
           </div>
 
-          <div className="modal-actions" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
+          <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>
               Отмена
             </button>
