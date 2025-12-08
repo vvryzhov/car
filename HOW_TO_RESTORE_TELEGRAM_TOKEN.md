@@ -145,3 +145,4 @@ TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
 - Убедитесь, что нет лишних пробелов
 - Проверьте токен в BotFather - возможно, он был отозван
 
+

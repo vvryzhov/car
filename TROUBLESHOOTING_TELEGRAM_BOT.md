@@ -143,3 +143,4 @@ docker-compose exec backend sh
 7. Обновите `.env` файл
 8. Перезапустите backend: `docker-compose restart backend`
 
+

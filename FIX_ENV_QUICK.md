@@ -44,3 +44,4 @@ docker compose down -v  # ВНИМАНИЕ: удалит все данные!
 docker compose up -d
 ```
 
+
