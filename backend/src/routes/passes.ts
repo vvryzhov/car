@@ -185,10 +185,13 @@ router.post(
       return res.status(400).json({ error: numberValidation.error });
     }
 
+    // Преобразуем номер в верхний регистр
+    const normalizedVehicleNumber = vehicleNumber.trim().toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
+
     try {
       const result = await dbRun(
         'INSERT INTO passes ("userId", "vehicleType", "vehicleBrand", "vehicleNumber", "entryDate", address, "plotNumber", comment) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
-        [req.user!.id, vehicleType, vehicleBrand || null, vehicleNumber, entryDate, address, plotNumber, comment || null]
+        [req.user!.id, vehicleType, vehicleBrand || null, normalizedVehicleNumber, entryDate, address, plotNumber, comment || null]
       );
 
       const pass = await dbGet('SELECT * FROM passes WHERE id = $1', [result.rows?.[0]?.id]) as any;
@@ -258,13 +261,18 @@ router.put(
       // Охрана не может изменять участок
       const updatePlotNumber = req.user!.role === 'security' ? pass.plotNumber : (plotNumber !== undefined ? plotNumber : pass.plotNumber);
 
+      // Преобразуем номер в верхний регистр, если он изменяется
+      const normalizedVehicleNumber = vehicleNumber !== undefined 
+        ? vehicleNumber.trim().toUpperCase().replace(/\s+/g, '').replace(/-/g, '')
+        : pass.vehicleNumber;
+
       // Обновляем пропуск
       await dbRun(
         'UPDATE passes SET "vehicleType" = $1, "vehicleBrand" = $2, "vehicleNumber" = $3, "entryDate" = $4, address = $5, "plotNumber" = $6, comment = $7, "securityComment" = $8, status = $9 WHERE id = $10',
         [
           vehicleType !== undefined ? vehicleType : pass.vehicleType,
           vehicleBrand !== undefined ? vehicleBrand : pass.vehicleBrand,
-          vehicleNumber !== undefined ? vehicleNumber : pass.vehicleNumber,
+          normalizedVehicleNumber,
           entryDate !== undefined ? entryDate : pass.entryDate,
           address !== undefined ? address : pass.address,
           updatePlotNumber,

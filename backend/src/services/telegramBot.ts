@@ -463,10 +463,13 @@ https://пропуск.аносинопарк.рф
 async function createPassFromBot(data: any) {
   const { userId, vehicleType, vehicleBrand, vehicleNumber, entryDate, address, plotNumber, comment } = data;
 
+  // Преобразуем номер в верхний регистр
+  const normalizedVehicleNumber = vehicleNumber.trim().toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
+
   try {
     const result = await dbRun(
       'INSERT INTO passes ("userId", "vehicleType", "vehicleBrand", "vehicleNumber", "entryDate", address, "plotNumber", comment) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
-      [userId, vehicleType, vehicleBrand, vehicleNumber, entryDate, address, plotNumber, comment]
+      [userId, vehicleType, vehicleBrand, normalizedVehicleNumber, entryDate, address, plotNumber, comment]
     );
 
     const passId = result.rows?.[0]?.id;

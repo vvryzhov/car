@@ -1376,6 +1376,9 @@ router.post('/me/permanent-passes', authenticate, requireRole(['user', 'foreman'
     return res.status(400).json({ error: numberValidation.error });
   }
 
+  // Преобразуем номер в верхний регистр
+  const normalizedVehicleNumber = vehicleNumber.trim().toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
+
   try {
     // Получаем первый участок пользователя для адреса
     const plots = await dbAll('SELECT * FROM user_plots WHERE "userId" = $1 LIMIT 1', [req.user!.id]) as any[];
@@ -1391,7 +1394,7 @@ router.post('/me/permanent-passes', authenticate, requireRole(['user', 'foreman'
       userId: req.user!.id,
       vehicleType,
       vehicleBrand,
-      vehicleNumber,
+      vehicleNumber: normalizedVehicleNumber,
       address,
       plotNumber: plot.plotNumber
     });
@@ -1401,7 +1404,7 @@ router.post('/me/permanent-passes', authenticate, requireRole(['user', 'foreman'
       `INSERT INTO passes ("userId", "vehicleType", "vehicleBrand", "vehicleNumber", "entryDate", address, "plotNumber", comment, "isPermanent", status) 
        VALUES ($1, $2, $3, $4, CURRENT_DATE, $5, $6, $7, true, 'personal_vehicle') 
        RETURNING id`,
-      [req.user!.id, vehicleType, vehicleBrand, vehicleNumber, address, plot.plotNumber, comment || null]
+      [req.user!.id, vehicleType, vehicleBrand, normalizedVehicleNumber, address, plot.plotNumber, comment || null]
     );
 
     const newPassId = result.rows?.[0]?.id || result.lastID;
@@ -1450,12 +1453,15 @@ router.put('/me/permanent-passes/:id', authenticate, requireRole(['user', 'forem
     const { vehicleType, vehicleBrand, vehicleNumber, comment } = req.body;
 
     // Валидация номера, если он изменяется
+    let normalizedVehicleNumber = pass.vehicleNumber;
     if (vehicleNumber && vehicleNumber !== pass.vehicleNumber) {
       const { validateVehicleNumber } = await import('../utils/vehicleNumberValidator');
       const numberValidation = validateVehicleNumber(vehicleNumber);
       if (!numberValidation.valid) {
         return res.status(400).json({ error: numberValidation.error });
       }
+      // Преобразуем номер в верхний регистр
+      normalizedVehicleNumber = vehicleNumber.trim().toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
     }
 
     // Обновляем пропуск
@@ -1469,7 +1475,7 @@ router.put('/me/permanent-passes/:id', authenticate, requireRole(['user', 'forem
       [
         vehicleType || pass.vehicleType,
         vehicleBrand || pass.vehicleBrand,
-        vehicleNumber || pass.vehicleNumber,
+        normalizedVehicleNumber,
         comment !== undefined ? comment : pass.comment,
         req.params.id
       ]
