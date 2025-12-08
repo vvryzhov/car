@@ -11,7 +11,6 @@ interface DateInputProps {
 const DateInput = ({ value, onChange, id, required, disabled }: DateInputProps) => {
   const dateInputRef = useRef<HTMLInputElement>(null);
   const [displayValue, setDisplayValue] = useState('');
-  const [showCalendar, setShowCalendar] = useState(false);
 
   // Конвертация YYYY-MM-DD в DD-MM-YYYY для отображения
   const formatDateForDisplay = (dateStr: string): string => {
