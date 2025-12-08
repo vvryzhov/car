@@ -498,11 +498,6 @@ const ProfileForm = ({ user, onCancel, onSave }: ProfileFormProps) => {
             )}
           </div>
 
-          {/* Постоянные пропуска (только для user и foreman) */}
-          {(user.role === 'user' || user.role === 'foreman') && (
-            <PermanentPassesManager userId={user.id} />
-          )}
-
           <div className="form-group">
             <button
               type="button"
@@ -564,6 +559,13 @@ const ProfileForm = ({ user, onCancel, onSave }: ProfileFormProps) => {
             </button>
           </div>
         </form>
+
+        {/* Постоянные пропуска (только для user и foreman) - вынесено из формы профиля */}
+        {(user.role === 'user' || user.role === 'foreman') && (
+          <div style={{ marginTop: '30px' }}>
+            <PermanentPassesManager userId={user.id} />
+          </div>
+        )}
       </div>
     </div>
   );
