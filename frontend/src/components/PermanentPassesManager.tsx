@@ -286,7 +286,7 @@ const PermanentPassesManager = ({ userId }: PermanentPassesManagerProps) => {
                 id="pp-vehicleNumber"
                 value={vehicleNumber}
                 onChange={(e) => {
-                  setVehicleNumber(e.target.value);
+                  setVehicleNumber(e.target.value.toUpperCase());
                   if (error && error.includes('номер')) {
                     setError('');
                   }

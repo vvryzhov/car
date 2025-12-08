@@ -259,12 +259,12 @@ const PassForm = ({ pass, user, onCancel, onSave }: PassFormProps) => {
               type="text"
               id="vehicleNumber"
               value={vehicleNumber}
-              onChange={(e) => {
-                setVehicleNumber(e.target.value);
-                if (error && error.includes('номер')) {
-                  setError('');
-                }
-              }}
+                onChange={(e) => {
+                  setVehicleNumber(e.target.value.toUpperCase());
+                  if (error && error.includes('номер')) {
+                    setError('');
+                  }
+                }}
               onBlur={() => {
                 if (vehicleNumber.trim()) {
                   const validation = validateVehicleNumber(vehicleNumber);
