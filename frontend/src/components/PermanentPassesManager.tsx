@@ -91,6 +91,7 @@ const PermanentPassesManager = ({ userId }: PermanentPassesManagerProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // Предотвращаем всплытие события к родительской форме
     console.log('🚀 handleSubmit вызван');
     setError('');
     setSaving(true);
@@ -199,7 +200,7 @@ const PermanentPassesManager = ({ userId }: PermanentPassesManagerProps) => {
           <h4 style={{ marginTop: 0, marginBottom: '15px' }}>
             {editingPass ? 'Редактировать постоянный пропуск' : 'Добавить постоянный пропуск'}
           </h4>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} onClick={(e) => e.stopPropagation()}>
             <div className="form-group" style={{ marginBottom: '15px' }}>
               <label htmlFor="pp-vehicleType">Тип транспорта</label>
               <select
