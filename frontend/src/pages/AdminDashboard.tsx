@@ -6,6 +6,7 @@ import UserModal from '../components/UserModal';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 import Footer from '../components/Footer';
 import { format } from 'date-fns';
+import { formatPhone } from '../utils/phoneFormatter';
 
 interface Plot {
   id: number;
@@ -540,7 +541,7 @@ const AdminDashboard = () => {
                           <span style={{ color: '#999' }}>Нет участков</span>
                         )}
                       </td>
-                      <td data-label="Телефон">{u.phone}</td>
+                      <td data-label="Телефон">{formatPhone(u.phone || '')}</td>
                       <td data-label="Роль">
                         <span className={`badge ${u.role === 'admin' ? 'badge-admin' : u.role === 'security' ? 'badge-pending' : u.role === 'foreman' ? 'badge-activated' : 'badge-user'}`}>
                           {u.role === 'admin' ? 'Администратор' : u.role === 'security' ? 'Охрана' : u.role === 'foreman' ? 'Прораб' : 'Пользователь'}
@@ -721,7 +722,7 @@ const AdminDashboard = () => {
                       {passes.map((pass) => (
                         <tr key={pass.id}>
                           <td data-label="ФИО">{pass.fullName}</td>
-                          <td data-label="Телефон">{pass.phone}</td>
+                          <td data-label="Телефон">{formatPhone(pass.phone || '')}</td>
                           <td data-label="Участок">{pass.plotNumber || '-'}</td>
                           <td data-label="Тип транспорта">{pass.vehicleType}</td>
                           <td data-label="Марка авто">{pass.vehicleBrand || '-'}</td>

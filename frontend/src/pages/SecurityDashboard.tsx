@@ -4,6 +4,7 @@ import api from '../services/api';
 import SecurityPassModal from '../components/SecurityPassModal';
 import Footer from '../components/Footer';
 import { format } from 'date-fns';
+import { formatPhone } from '../utils/phoneFormatter';
 
 interface Pass {
   id: number;
@@ -295,7 +296,7 @@ const SecurityDashboard = () => {
                 {passes.map((pass) => (
                   <tr key={pass.id}>
                     <td data-label="ФИО">{pass.fullName}</td>
-                    <td data-label="Телефон">{pass.phone}</td>
+                    <td data-label="Телефон">{formatPhone(pass.phone || '')}</td>
                     <td data-label="Тип транспорта">{pass.vehicleType}</td>
                     <td data-label="Марка авто">{pass.vehicleBrand || '-'}</td>
                     <td data-label="Номер авто">{pass.vehicleNumber}</td>
@@ -395,7 +396,7 @@ const SecurityDashboard = () => {
                       {permanentPasses.map((pass) => (
                         <tr key={pass.id}>
                           <td data-label="ФИО">{pass.fullName}</td>
-                          <td data-label="Телефон">{pass.phone}</td>
+                          <td data-label="Телефон">{formatPhone(pass.phone || '')}</td>
                           <td data-label="Тип транспорта">{pass.vehicleType}</td>
                           <td data-label="Марка авто">{pass.vehicleBrand || '-'}</td>
                           <td data-label="Номер авто">{pass.vehicleNumber}</td>
