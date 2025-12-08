@@ -8,6 +8,7 @@ import { dbGet, dbRun, dbAll } from '../database';
 import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
 import { sendPasswordResetEmail, sendEmailChangeConfirmationCode } from '../services/email';
 import { validatePassword } from '../utils/passwordValidator';
+import { broadcastEvent } from '../services/sse';
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -1419,6 +1420,9 @@ router.post('/me/permanent-passes', authenticate, requireRole(['user', 'foreman'
       return res.status(500).json({ error: 'Ошибка создания пропуска: пропуск не найден после создания' });
     }
     
+    // Отправляем событие о новой заявке через SSE
+    broadcastEvent('new-pass', { message: 'Новая заявка создана', passId: pass.id });
+    
     console.log('Постоянный пропуск успешно создан:', pass);
     res.status(201).json(pass);
   } catch (error: any) {
@@ -1480,6 +1484,9 @@ router.put('/me/permanent-passes/:id', authenticate, requireRole(['user', 'forem
         req.params.id
       ]
     );
+
+    // Отправляем событие об обновлении заявки через SSE
+    broadcastEvent('pass-updated', { message: 'Заявка обновлена', passId: pass.id });
 
     const updatedPass = await dbGet('SELECT * FROM passes WHERE id = $1', [req.params.id]) as any;
     res.json(updatedPass);

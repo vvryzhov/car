@@ -100,12 +100,20 @@ const SecurityDashboard = () => {
     eventSource.addEventListener('new-pass', () => {
       console.log('Получено событие: новая заявка');
       fetchPasses(false); // Обновляем список без показа loading
+      // Также обновляем список постоянных пропусков, если открыта соответствующая вкладка
+      if (activeTab === 'permanent') {
+        fetchPermanentPasses();
+      }
     });
 
     // Обработка события обновления заявки
     eventSource.addEventListener('pass-updated', () => {
       console.log('Получено событие: заявка обновлена');
       fetchPasses(false); // Обновляем список без показа loading
+      // Также обновляем список постоянных пропусков, если открыта соответствующая вкладка
+      if (activeTab === 'permanent') {
+        fetchPermanentPasses();
+      }
     });
 
     // Обработка подключения
@@ -123,7 +131,7 @@ const SecurityDashboard = () => {
     return () => {
       eventSource.close();
     };
-  }, [fetchPasses, editingPass]);
+  }, [fetchPasses, fetchPermanentPasses, editingPass, activeTab]);
 
   const clearFilters = () => {
     setFilterDate('');
