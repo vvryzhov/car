@@ -6,6 +6,9 @@ const clients = new Set<Response>();
 // Функция для отправки события всем подключенным клиентам
 export const broadcastEvent = (event: string, data: any) => {
   const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  const clientsCount = clients.size;
+  
+  console.log(`📢 Отправка SSE события "${event}" для ${clientsCount} клиентов`, data);
   
   clients.forEach((client) => {
     try {
@@ -16,6 +19,10 @@ export const broadcastEvent = (event: string, data: any) => {
       clients.delete(client);
     }
   });
+  
+  if (clientsCount === 0) {
+    console.warn('⚠️ Нет подключенных клиентов для отправки события');
+  }
 };
 
 // Функция для добавления нового клиента

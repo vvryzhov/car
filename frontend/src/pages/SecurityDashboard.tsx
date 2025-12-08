@@ -97,9 +97,10 @@ const SecurityDashboard = () => {
     const eventSource = new EventSource(`/api/passes/events?token=${encodeURIComponent(token)}`);
 
     // Обработка события новой заявки
-    eventSource.addEventListener('new-pass', () => {
-      console.log('Получено событие: новая заявка');
-      fetchPasses(false); // Обновляем список без показа loading
+    eventSource.addEventListener('new-pass', (event: any) => {
+      console.log('Получено событие: новая заявка', event);
+      // Обновляем список обычных заявок
+      fetchPasses(false);
       // Также обновляем список постоянных пропусков, если открыта соответствующая вкладка
       if (activeTab === 'permanent') {
         fetchPermanentPasses();
@@ -107,24 +108,53 @@ const SecurityDashboard = () => {
     });
 
     // Обработка события обновления заявки
-    eventSource.addEventListener('pass-updated', () => {
-      console.log('Получено событие: заявка обновлена');
-      fetchPasses(false); // Обновляем список без показа loading
+    eventSource.addEventListener('pass-updated', (event: any) => {
+      console.log('Получено событие: заявка обновлена', event);
+      // Обновляем список обычных заявок
+      fetchPasses(false);
       // Также обновляем список постоянных пропусков, если открыта соответствующая вкладка
       if (activeTab === 'permanent') {
         fetchPermanentPasses();
       }
     });
 
+    // Обработка события удаления заявки
+    eventSource.addEventListener('pass-deleted', (event: any) => {
+      console.log('Получено событие: заявка удалена', event);
+      // Обновляем список обычных заявок
+      fetchPasses(false);
+      // Также обновляем список постоянных пропусков, если открыта соответствующая вкладка
+      if (activeTab === 'permanent') {
+        fetchPermanentPasses();
+      }
+    });
+
+    // Обработка общих сообщений (на случай, если события приходят без типа)
+    eventSource.onmessage = (event: MessageEvent) => {
+      console.log('Получено сообщение SSE:', event);
+      // Если пришло сообщение без типа события, обновляем списки
+      if (event.data && event.data !== 'connected') {
+        fetchPasses(false);
+        if (activeTab === 'permanent') {
+          fetchPermanentPasses();
+        }
+      }
+    };
+
     // Обработка подключения
     eventSource.onopen = () => {
-      console.log('SSE подключен');
+      console.log('✅ SSE подключен успешно');
     };
 
     // Обработка ошибок
     eventSource.onerror = (error) => {
-      console.error('Ошибка SSE соединения:', error);
+      console.error('❌ Ошибка SSE соединения:', error);
+      console.log('Состояние EventSource:', eventSource.readyState);
       // EventSource автоматически переподключается при ошибках
+      // readyState: 0 = CONNECTING, 1 = OPEN, 2 = CLOSED
+      if (eventSource.readyState === EventSource.CLOSED) {
+        console.log('Соединение закрыто, попытка переподключения...');
+      }
     };
 
     // Очистка при размонтировании или при открытии модального окна

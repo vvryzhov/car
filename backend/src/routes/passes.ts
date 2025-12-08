@@ -344,6 +344,10 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
     // Мягкое удаление - устанавливаем deletedAt
     await dbRun('UPDATE passes SET "deletedAt" = CURRENT_TIMESTAMP WHERE id = $1', [req.params.id]);
+    
+    // Отправляем событие об удалении заявки через SSE
+    broadcastEvent('pass-deleted', { message: 'Заявка удалена', passId: pass.id });
+    
     res.json({ message: 'Заявка удалена' });
   } catch (error) {
     console.error('Ошибка удаления заявки:', error);
