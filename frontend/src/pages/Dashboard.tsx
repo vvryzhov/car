@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
-import PassModal from '../components/PassModal';
+import PassForm from '../components/PassForm';
 import ProfileModal from '../components/ProfileModal';
 import Footer from '../components/Footer';
 import { format } from 'date-fns';
@@ -105,102 +105,102 @@ const Dashboard = () => {
       </div>
 
       <div className="container">
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h2>Мои заявки на пропуск</h2>
-            <button className="btn btn-primary" onClick={handleCreatePass}>
-              Заказать пропуск
-            </button>
-          </div>
-
-          {loading ? (
-            <div className="loading">Загрузка...</div>
-          ) : passes.length === 0 ? (
-            <div className="empty-state">
-              <p>У вас пока нет заявок</p>
+        {showPassModal ? (
+          <PassForm
+            pass={editingPass}
+            user={user!}
+            onCancel={() => {
+              setShowPassModal(false);
+              setEditingPass(null);
+            }}
+            onSave={handlePassSaved}
+          />
+        ) : (
+          <div className="card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2>Мои заявки на пропуск</h2>
               <button className="btn btn-primary" onClick={handleCreatePass}>
-                Создать первую заявку
+                Заказать пропуск
               </button>
             </div>
-          ) : (
-            <div className="table-wrapper">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Тип транспорта</th>
-                    <th>Марка авто</th>
-                    <th>Номер авто</th>
-                    <th>Дата въезда</th>
-                    <th>Адрес</th>
-                    <th>Комментарий</th>
-                    <th>Статус</th>
-                    <th>Действия</th>
-                  </tr>
-                </thead>
-              <tbody>
-                {passes.map((pass) => (
-                  <tr key={pass.id}>
-                    <td data-label="Тип транспорта">{pass.vehicleType}</td>
-                    <td data-label="Марка авто">{pass.vehicleBrand || '-'}</td>
-                    <td data-label="Номер авто">{pass.vehicleNumber}</td>
-                    <td data-label="Дата въезда">
-                      {format(new Date(pass.entryDate), 'dd.MM.yyyy')}
-                    </td>
-                    <td data-label="Адрес">{pass.address}</td>
-                    <td data-label="Комментарий">{pass.comment || '-'}</td>
-                    <td data-label="Статус">
-                      <span className={`badge badge-${pass.status}`}>
-                        {pass.status === 'pending' ? 'Ожидает' : 
-                         pass.status === 'activated' ? 'Заехал' : 
-                         'Отклонено'}
-                      </span>
-                    </td>
-                    <td data-label="Действия">
-                      {pass.status === 'activated' ? (
-                        <span style={{ color: '#666', fontSize: '14px' }}>
-                          Заявка завершена
+
+            {loading ? (
+              <div className="loading">Загрузка...</div>
+            ) : passes.length === 0 ? (
+              <div className="empty-state">
+                <p>У вас пока нет заявок</p>
+                <button className="btn btn-primary" onClick={handleCreatePass}>
+                  Создать первую заявку
+                </button>
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Тип транспорта</th>
+                      <th>Марка авто</th>
+                      <th>Номер авто</th>
+                      <th>Дата въезда</th>
+                      <th>Адрес</th>
+                      <th>Комментарий</th>
+                      <th>Статус</th>
+                      <th>Действия</th>
+                    </tr>
+                  </thead>
+                <tbody>
+                  {passes.map((pass) => (
+                    <tr key={pass.id}>
+                      <td data-label="Тип транспорта">{pass.vehicleType}</td>
+                      <td data-label="Марка авто">{pass.vehicleBrand || '-'}</td>
+                      <td data-label="Номер авто">{pass.vehicleNumber}</td>
+                      <td data-label="Дата въезда">
+                        {format(new Date(pass.entryDate), 'dd.MM.yyyy')}
+                      </td>
+                      <td data-label="Адрес">{pass.address}</td>
+                      <td data-label="Комментарий">{pass.comment || '-'}</td>
+                      <td data-label="Статус">
+                        <span className={`badge badge-${pass.status}`}>
+                          {pass.status === 'pending' ? 'Ожидает' : 
+                           pass.status === 'activated' ? 'Заехал' : 
+                           'Отклонено'}
                         </span>
-                      ) : (
-                        <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                          <button
-                            className="btn btn-secondary"
-                            onClick={() => handleEditPass(pass)}
-                            style={{ padding: '5px 10px', fontSize: '14px' }}
-                          >
-                            Редактировать
-                          </button>
-                          {pass.status !== 'activated' && (
+                      </td>
+                      <td data-label="Действия">
+                        {pass.status === 'activated' ? (
+                          <span style={{ color: '#666', fontSize: '14px' }}>
+                            Заявка завершена
+                          </span>
+                        ) : (
+                          <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
                             <button
-                              className="btn btn-danger"
-                              onClick={() => handleDeletePass(pass.id)}
+                              className="btn btn-secondary"
+                              onClick={() => handleEditPass(pass)}
                               style={{ padding: '5px 10px', fontSize: '14px' }}
                             >
-                              Удалить
+                              Редактировать
                             </button>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                            {pass.status !== 'activated' && (
+                              <button
+                                className="btn btn-danger"
+                                onClick={() => handleDeletePass(pass.id)}
+                                style={{ padding: '5px 10px', fontSize: '14px' }}
+                              >
+                                Удалить
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </div>
-
-      {showPassModal && (
-        <PassModal
-          pass={editingPass}
-          user={user!}
-          onClose={() => {
-            setShowPassModal(false);
-            setEditingPass(null);
-          }}
-          onSave={handlePassSaved}
-        />
-      )}
 
       {showProfileModal && (
         <ProfileModal
