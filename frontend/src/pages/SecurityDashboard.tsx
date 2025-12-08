@@ -87,20 +87,28 @@ const SecurityDashboard = () => {
     fetchPasses();
   }, [fetchPasses]);
 
-  // Подключение к SSE для получения обновлений в реальном времени
+  // Подключение к SSE для получения обновлений в реальном времени + polling как fallback
   useEffect(() => {
     // Не подключаемся, если открыто модальное окно редактирования
     if (editingPass) return;
 
     const token = localStorage.getItem('token');
     if (!token) {
-      console.warn('⚠️ Токен не найден, SSE не подключен');
-      return;
+      console.warn('⚠️ Токен не найден, используем только polling');
+      // Используем только polling если нет токена
+      const pollInterval = setInterval(() => {
+        fetchPasses(false);
+        if (activeTab === 'permanent') {
+          fetchPermanentPasses();
+        }
+      }, 5000); // Обновляем каждые 5 секунд
+      
+      return () => clearInterval(pollInterval);
     }
 
-    console.log('🔌 Подключение к SSE...');
-    // Используем EventSource с токеном в URL параметре
-    const eventSource = new EventSource(`/api/passes/events?token=${encodeURIComponent(token)}`);
+    let eventSource: EventSource | null = null;
+    let pollInterval: NodeJS.Timeout | null = null;
+    let sseWorking = false;
 
     // Функция для обновления списков
     const refreshLists = () => {
@@ -113,111 +121,152 @@ const SecurityDashboard = () => {
       }
     };
 
-    // Обработка события новой заявки
-    const handleNewPass = (event: MessageEvent) => {
-      console.log('📨 [new-pass] Получено событие: новая заявка', {
-        type: event.type,
-        data: event.data,
-        origin: event.origin,
-        lastEventId: event.lastEventId
-      });
-      if (event.data) {
-        try {
-          const data = JSON.parse(event.data);
-          console.log('📦 [new-pass] Распарсенные данные события:', data);
-        } catch (e) {
-          console.log('⚠️ [new-pass] Данные события (не JSON):', event.data);
-        }
-      }
-      refreshLists();
-    };
-    eventSource.addEventListener('new-pass', handleNewPass);
+    // Пытаемся подключиться к SSE
+    console.log('🔌 Подключение к SSE...');
+    try {
+      eventSource = new EventSource(`/api/passes/events?token=${encodeURIComponent(token)}`);
 
-    // Обработка события обновления заявки
-    const handlePassUpdated = (event: MessageEvent) => {
-      console.log('📨 [pass-updated] Получено событие: заявка обновлена', {
-        type: event.type,
-        data: event.data,
-        origin: event.origin,
-        lastEventId: event.lastEventId
-      });
-      if (event.data) {
-        try {
-          const data = JSON.parse(event.data);
-          console.log('📦 [pass-updated] Распарсенные данные события:', data);
-        } catch (e) {
-          console.log('⚠️ [pass-updated] Данные события (не JSON):', event.data);
+      // Обработка события новой заявки
+      const handleNewPass = (event: MessageEvent) => {
+        console.log('📨 [new-pass] Получено событие: новая заявка', {
+          type: event.type,
+          data: event.data,
+          origin: event.origin,
+          lastEventId: event.lastEventId
+        });
+        if (event.data) {
+          try {
+            const data = JSON.parse(event.data);
+            console.log('📦 [new-pass] Распарсенные данные события:', data);
+          } catch (e) {
+            console.log('⚠️ [new-pass] Данные события (не JSON):', event.data);
+          }
         }
-      }
-      refreshLists();
-    };
-    eventSource.addEventListener('pass-updated', handlePassUpdated);
-
-    // Обработка события удаления заявки
-    const handlePassDeleted = (event: MessageEvent) => {
-      console.log('📨 [pass-deleted] Получено событие: заявка удалена', {
-        type: event.type,
-        data: event.data,
-        origin: event.origin,
-        lastEventId: event.lastEventId
-      });
-      if (event.data) {
-        try {
-          const data = JSON.parse(event.data);
-          console.log('📦 [pass-deleted] Распарсенные данные события:', data);
-        } catch (e) {
-          console.log('⚠️ [pass-deleted] Данные события (не JSON):', event.data);
-        }
-      }
-      refreshLists();
-    };
-    eventSource.addEventListener('pass-deleted', handlePassDeleted);
-
-    // Обработка общих сообщений (на случай, если события приходят без типа)
-    eventSource.onmessage = (event: MessageEvent) => {
-      console.log('📨 Получено общее сообщение SSE (onmessage):', {
-        type: event.type,
-        data: event.data,
-        origin: event.origin,
-        lastEventId: event.lastEventId,
-        target: event.target
-      });
-      // Если пришло сообщение без типа события, обновляем списки
-      if (event.data && event.data !== 'connected' && event.data !== 'ping') {
-        console.log('🔄 Обновление списков из-за общего сообщения');
         refreshLists();
-      } else if (event.data === 'connected') {
-        console.log('✅ Получено подтверждение подключения');
-      } else if (event.data === 'ping') {
-        console.log('💓 Получен ping от сервера');
-      }
-    };
+      };
+      eventSource.addEventListener('new-pass', handleNewPass);
 
-    // Обработка подключения
-    eventSource.onopen = (event) => {
-      console.log('✅ SSE подключен успешно, readyState:', eventSource.readyState, event);
-    };
+      // Обработка события обновления заявки
+      const handlePassUpdated = (event: MessageEvent) => {
+        console.log('📨 [pass-updated] Получено событие: заявка обновлена', {
+          type: event.type,
+          data: event.data,
+          origin: event.origin,
+          lastEventId: event.lastEventId
+        });
+        if (event.data) {
+          try {
+            const data = JSON.parse(event.data);
+            console.log('📦 [pass-updated] Распарсенные данные события:', data);
+          } catch (e) {
+            console.log('⚠️ [pass-updated] Данные события (не JSON):', event.data);
+          }
+        }
+        refreshLists();
+      };
+      eventSource.addEventListener('pass-updated', handlePassUpdated);
 
-    // Обработка ошибок
-    eventSource.onerror = (error) => {
-      console.error('❌ Ошибка SSE соединения:', error);
-      console.log('Состояние EventSource:', eventSource.readyState);
-      console.log('URL:', eventSource.url);
-      // EventSource автоматически переподключается при ошибках
-      // readyState: 0 = CONNECTING, 1 = OPEN, 2 = CLOSED
-      if (eventSource.readyState === EventSource.CLOSED) {
-        console.log('⚠️ Соединение закрыто, EventSource попытается переподключиться автоматически...');
-      } else if (eventSource.readyState === EventSource.CONNECTING) {
-        console.log('🔄 Переподключение...');
-      } else if (eventSource.readyState === EventSource.OPEN) {
-        console.log('✅ Соединение открыто, но произошла ошибка');
-      }
-    };
+      // Обработка события удаления заявки
+      const handlePassDeleted = (event: MessageEvent) => {
+        console.log('📨 [pass-deleted] Получено событие: заявка удалена', {
+          type: event.type,
+          data: event.data,
+          origin: event.origin,
+          lastEventId: event.lastEventId
+        });
+        if (event.data) {
+          try {
+            const data = JSON.parse(event.data);
+            console.log('📦 [pass-deleted] Распарсенные данные события:', data);
+          } catch (e) {
+            console.log('⚠️ [pass-deleted] Данные события (не JSON):', event.data);
+          }
+        }
+        refreshLists();
+      };
+      eventSource.addEventListener('pass-deleted', handlePassDeleted);
+
+      // Обработка общих сообщений (на случай, если события приходят без типа)
+      eventSource.onmessage = (event: MessageEvent) => {
+        console.log('📨 Получено общее сообщение SSE (onmessage):', {
+          type: event.type,
+          data: event.data,
+          origin: event.origin,
+          lastEventId: event.lastEventId,
+          target: event.target
+        });
+        // Если пришло сообщение без типа события, обновляем списки
+        if (event.data && event.data !== 'connected' && event.data !== 'ping') {
+          console.log('🔄 Обновление списков из-за общего сообщения');
+          refreshLists();
+        } else if (event.data === 'connected') {
+          console.log('✅ Получено подтверждение подключения');
+        } else if (event.data === 'ping') {
+          console.log('💓 Получен ping от сервера');
+        }
+      };
+
+      // Обработка подключения
+      eventSource.onopen = (event) => {
+        console.log('✅ SSE подключен успешно, readyState:', eventSource.readyState, event);
+        sseWorking = true;
+        // Если SSE работает, останавливаем polling
+        if (pollInterval) {
+          clearInterval(pollInterval);
+          pollInterval = null;
+          console.log('🛑 Polling остановлен, SSE работает');
+        }
+      };
+
+      // Обработка ошибок
+      eventSource.onerror = (error) => {
+        console.error('❌ Ошибка SSE соединения:', error);
+        console.log('Состояние EventSource:', eventSource.readyState);
+        console.log('URL:', eventSource.url);
+        
+        // Если SSE не работает, запускаем polling
+        if (!sseWorking && !pollInterval) {
+          console.log('🔄 SSE не работает, запускаем polling каждые 5 секунд...');
+          pollInterval = setInterval(() => {
+            refreshLists();
+          }, 5000);
+        }
+        
+        // EventSource автоматически переподключается при ошибках
+        // readyState: 0 = CONNECTING, 1 = OPEN, 2 = CLOSED
+        if (eventSource.readyState === EventSource.CLOSED) {
+          console.log('⚠️ Соединение закрыто, EventSource попытается переподключиться автоматически...');
+          sseWorking = false;
+        } else if (eventSource.readyState === EventSource.CONNECTING) {
+          console.log('🔄 Переподключение...');
+          sseWorking = false;
+        } else if (eventSource.readyState === EventSource.OPEN) {
+          console.log('✅ Соединение открыто, но произошла ошибка');
+        }
+      };
+    } catch (error) {
+      console.error('❌ Ошибка создания EventSource:', error);
+      // Если не удалось создать EventSource, используем только polling
+      console.log('🔄 Используем только polling...');
+      pollInterval = setInterval(() => {
+        refreshLists();
+      }, 5000);
+    }
+
+    // Запускаем polling сразу как fallback (будет остановлен если SSE заработает)
+    pollInterval = pollInterval || setInterval(() => {
+      refreshLists();
+    }, 5000);
 
     // Очистка при размонтировании или при открытии модального окна
     return () => {
-      console.log('🔌 Закрытие SSE соединения');
-      eventSource.close();
+      console.log('🔌 Закрытие SSE соединения и polling');
+      if (eventSource) {
+        eventSource.close();
+      }
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
     };
   }, [fetchPasses, fetchPermanentPasses, editingPass, activeTab]);
 
