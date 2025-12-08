@@ -49,10 +49,12 @@ const SecurityDashboard = () => {
       if (filterPlotNumber) params.plotNumber = filterPlotNumber;
       if (filterVehicleNumber) params.vehicleNumber = filterVehicleNumber;
 
+      console.log('📥 Загрузка заявок с параметрами:', params);
       const response = await api.get('/passes/all', { params });
+      console.log('✅ Заявки загружены, получено:', response.data.length, 'заявок');
       setPasses(response.data);
     } catch (error) {
-      console.error('Ошибка загрузки заявок:', error);
+      console.error('❌ Ошибка загрузки заявок:', error);
     } finally {
       if (showLoading) {
         setLoading(false);
@@ -91,59 +93,81 @@ const SecurityDashboard = () => {
     if (editingPass) return;
 
     const token = localStorage.getItem('token');
-    if (!token) return;
+    if (!token) {
+      console.warn('⚠️ Токен не найден, SSE не подключен');
+      return;
+    }
 
+    console.log('🔌 Подключение к SSE...');
     // Используем EventSource с токеном в URL параметре
     const eventSource = new EventSource(`/api/passes/events?token=${encodeURIComponent(token)}`);
 
-    // Обработка события новой заявки
-    eventSource.addEventListener('new-pass', (event: any) => {
-      console.log('Получено событие: новая заявка', event);
+    // Функция для обновления списков
+    const refreshLists = () => {
+      console.log('🔄 Обновление списков заявок...');
       // Обновляем список обычных заявок
       fetchPasses(false);
       // Также обновляем список постоянных пропусков, если открыта соответствующая вкладка
       if (activeTab === 'permanent') {
         fetchPermanentPasses();
       }
+    };
+
+    // Обработка события новой заявки
+    eventSource.addEventListener('new-pass', (event: any) => {
+      console.log('📨 Получено событие: новая заявка', event);
+      if (event.data) {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('Данные события:', data);
+        } catch (e) {
+          console.log('Данные события (не JSON):', event.data);
+        }
+      }
+      refreshLists();
     });
 
     // Обработка события обновления заявки
     eventSource.addEventListener('pass-updated', (event: any) => {
-      console.log('Получено событие: заявка обновлена', event);
-      // Обновляем список обычных заявок
-      fetchPasses(false);
-      // Также обновляем список постоянных пропусков, если открыта соответствующая вкладка
-      if (activeTab === 'permanent') {
-        fetchPermanentPasses();
+      console.log('📨 Получено событие: заявка обновлена', event);
+      if (event.data) {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('Данные события:', data);
+        } catch (e) {
+          console.log('Данные события (не JSON):', event.data);
+        }
       }
+      refreshLists();
     });
 
     // Обработка события удаления заявки
     eventSource.addEventListener('pass-deleted', (event: any) => {
-      console.log('Получено событие: заявка удалена', event);
-      // Обновляем список обычных заявок
-      fetchPasses(false);
-      // Также обновляем список постоянных пропусков, если открыта соответствующая вкладка
-      if (activeTab === 'permanent') {
-        fetchPermanentPasses();
+      console.log('📨 Получено событие: заявка удалена', event);
+      if (event.data) {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('Данные события:', data);
+        } catch (e) {
+          console.log('Данные события (не JSON):', event.data);
+        }
       }
+      refreshLists();
     });
 
     // Обработка общих сообщений (на случай, если события приходят без типа)
     eventSource.onmessage = (event: MessageEvent) => {
-      console.log('Получено сообщение SSE:', event);
+      console.log('📨 Получено общее сообщение SSE:', event);
       // Если пришло сообщение без типа события, обновляем списки
-      if (event.data && event.data !== 'connected') {
-        fetchPasses(false);
-        if (activeTab === 'permanent') {
-          fetchPermanentPasses();
-        }
+      if (event.data && event.data !== 'connected' && event.data !== 'ping') {
+        console.log('Обновление списков из-за общего сообщения');
+        refreshLists();
       }
     };
 
     // Обработка подключения
     eventSource.onopen = () => {
-      console.log('✅ SSE подключен успешно');
+      console.log('✅ SSE подключен успешно, readyState:', eventSource.readyState);
     };
 
     // Обработка ошибок
@@ -154,11 +178,14 @@ const SecurityDashboard = () => {
       // readyState: 0 = CONNECTING, 1 = OPEN, 2 = CLOSED
       if (eventSource.readyState === EventSource.CLOSED) {
         console.log('Соединение закрыто, попытка переподключения...');
+      } else if (eventSource.readyState === EventSource.CONNECTING) {
+        console.log('Переподключение...');
       }
     };
 
     // Очистка при размонтировании или при открытии модального окна
     return () => {
+      console.log('🔌 Закрытие SSE соединения');
       eventSource.close();
     };
   }, [fetchPasses, fetchPermanentPasses, editingPass, activeTab]);
