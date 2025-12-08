@@ -322,10 +322,23 @@ const PermanentPassesManager = ({ userId }: PermanentPassesManagerProps) => {
             {error && <div className="error" style={{ marginBottom: '15px' }}>{error}</div>}
 
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button type="button" className="btn btn-secondary" onClick={handleCancel} disabled={saving}>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => {
+                  console.log('🔴 Кнопка "Отмена" нажата');
+                  handleCancel();
+                }} 
+                disabled={saving}
+              >
                 Отмена
               </button>
-              <button type="submit" className="btn btn-primary" disabled={saving}>
+              <button 
+                type="submit" 
+                className="btn btn-primary" 
+                disabled={saving}
+                onClick={() => console.log('🟢 Кнопка submit нажата')}
+              >
                 {saving ? 'Сохранение...' : editingPass ? 'Сохранить' : 'Добавить'}
               </button>
             </div>
