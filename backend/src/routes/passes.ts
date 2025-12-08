@@ -33,6 +33,12 @@ router.get('/events', (req: express.Request, res: Response, next: express.NextFu
 
   // Отключаем таймауты
   res.setTimeout(0);
+  req.setTimeout(0);
+
+  // Не закрываем соединение автоматически
+  res.on('close', () => {
+    console.log(`🔌 Response закрыт для пользователя ${req.user!.id}`);
+  });
 
   // Добавляем клиента в список подключенных
   addClient(res);
@@ -41,6 +47,7 @@ router.get('/events', (req: express.Request, res: Response, next: express.NextFu
   // Отправляем начальное сообщение
   try {
     res.write(': connected\n\n');
+    console.log(`📤 Начальное сообщение отправлено пользователю ${req.user!.id}`);
   } catch (error) {
     console.error('Ошибка отправки начального сообщения:', error);
   }
