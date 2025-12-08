@@ -20,11 +20,31 @@ const userStates = new Map<number, UserState>();
 
 export const initTelegramBot = () => {
   if (!TELEGRAM_BOT_TOKEN) {
-    console.log('TELEGRAM_BOT_TOKEN не установлен, бот не будет запущен');
+    console.log('⚠️ TELEGRAM_BOT_TOKEN не установлен, бот не будет запущен');
     return null;
   }
 
-  bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
+  try {
+    console.log('🤖 Инициализация Telegram бота...');
+    bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
+    
+    // Обработка ошибок бота
+    bot.on('polling_error', (error: Error) => {
+      console.error('❌ Ошибка polling Telegram бота:', error.message);
+      console.error('Полная ошибка:', error);
+    });
+
+    bot.on('error', (error: Error) => {
+      console.error('❌ Ошибка Telegram бота:', error.message);
+      console.error('Полная ошибка:', error);
+    });
+
+    console.log('✅ Telegram бот успешно инициализирован');
+  } catch (error: any) {
+    console.error('❌ Критическая ошибка при инициализации Telegram бота:', error.message);
+    console.error('Полная ошибка:', error);
+    bot = null;
+  }
 
   // Команда /start
   bot.onText(/\/start/, async (msg: Message) => {

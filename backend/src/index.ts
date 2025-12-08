@@ -25,15 +25,24 @@ app.use('/api/settings', settingsRoutes);
 // Инициализация базы данных и запуск сервера
 initDatabase()
   .then(() => {
+    console.log('✅ База данных инициализирована');
+    
     // Инициализация Telegram бота
-    initTelegramBot();
+    try {
+      const botResult = initTelegramBot();
+      if (!botResult) {
+        console.log('⚠️ Telegram бот не запущен (возможно, не установлен TELEGRAM_BOT_TOKEN)');
+      }
+    } catch (error: any) {
+      console.error('❌ Ошибка при инициализации Telegram бота:', error.message);
+    }
     
     app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Сервер запущен на порту ${PORT}`);
+      console.log(`✅ Сервер запущен на порту ${PORT}`);
     });
   })
   .catch((error) => {
-    console.error('Ошибка инициализации базы данных:', error);
+    console.error('❌ Ошибка инициализации базы данных:', error);
     process.exit(1);
   });
 
