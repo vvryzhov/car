@@ -166,20 +166,23 @@ const SecurityDashboard = () => {
     };
 
     // Обработка подключения
-    eventSource.onopen = () => {
-      console.log('✅ SSE подключен успешно, readyState:', eventSource.readyState);
+    eventSource.onopen = (event) => {
+      console.log('✅ SSE подключен успешно, readyState:', eventSource.readyState, event);
     };
 
     // Обработка ошибок
     eventSource.onerror = (error) => {
       console.error('❌ Ошибка SSE соединения:', error);
       console.log('Состояние EventSource:', eventSource.readyState);
+      console.log('URL:', eventSource.url);
       // EventSource автоматически переподключается при ошибках
       // readyState: 0 = CONNECTING, 1 = OPEN, 2 = CLOSED
       if (eventSource.readyState === EventSource.CLOSED) {
-        console.log('Соединение закрыто, попытка переподключения...');
+        console.log('⚠️ Соединение закрыто, EventSource попытается переподключиться автоматически...');
       } else if (eventSource.readyState === EventSource.CONNECTING) {
-        console.log('Переподключение...');
+        console.log('🔄 Переподключение...');
+      } else if (eventSource.readyState === EventSource.OPEN) {
+        console.log('✅ Соединение открыто, но произошла ошибка');
       }
     };
 
