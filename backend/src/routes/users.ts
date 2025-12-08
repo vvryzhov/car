@@ -1371,10 +1371,10 @@ router.post('/me/permanent-passes', authenticate, requireRole(['user', 'foreman'
 
   try {
     // Получаем первый участок пользователя для адреса
-    const plots = await dbAll('SELECT * FROM plots WHERE "userId" = $1 LIMIT 1', [req.user!.id]) as any[];
+    const plots = await dbAll('SELECT * FROM user_plots WHERE "userId" = $1 LIMIT 1', [req.user!.id]) as any[];
     if (plots.length === 0) {
       console.error('У пользователя нет участков:', req.user!.id);
-      return res.status(400).json({ error: 'У вас нет добавленных участков' });
+      return res.status(400).json({ error: 'У вас нет добавленных участков. Пожалуйста, добавьте участок в профиле.' });
     }
 
     const plot = plots[0];
