@@ -144,3 +144,7 @@ docker-compose exec backend sh
 8. Перезапустите backend: `docker-compose restart backend`
 
 
+
+
+
+

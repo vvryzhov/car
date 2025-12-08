@@ -74,3 +74,7 @@ docker compose up -d
 После этого база будет создана с паролем `postgres` из `.env`.
 
 
+
+
+
+
