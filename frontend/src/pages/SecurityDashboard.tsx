@@ -29,7 +29,19 @@ const SecurityDashboard = () => {
   const [permanentPasses, setPermanentPasses] = useState<Pass[]>([]);
   const [loading, setLoading] = useState(true);
   const [permanentLoading, setPermanentLoading] = useState(false);
-  const [filterDate, setFilterDate] = useState('');
+  
+  // Получаем текущую дату в формате YYYY-MM-DD (Москва)
+  const getMoscowDate = () => {
+    const now = new Date();
+    // Москва UTC+3
+    const moscowTime = new Date(now.getTime() + (3 * 60 * 60 * 1000));
+    const year = moscowTime.getUTCFullYear();
+    const month = String(moscowTime.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(moscowTime.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  
+  const [filterDate, setFilterDate] = useState(getMoscowDate());
   const [filterVehicleType, setFilterVehicleType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterPlotNumber, setFilterPlotNumber] = useState('');
@@ -91,16 +103,16 @@ const SecurityDashboard = () => {
   useEffect(() => {
     // Не подключаемся, если открыто модальное окно редактирования
     if (editingPass) return;
+    
+    // Не обновляем список для вкладки "личный транспорт"
+    if (activeTab === 'permanent') return;
 
     const token = localStorage.getItem('token');
     if (!token) {
       console.warn('⚠️ Токен не найден, используем только polling');
       // Используем только polling если нет токена
-      const pollInterval = setInterval(() => {
+      const pollInterval = window.setInterval(() => {
         fetchPasses(false);
-        if (activeTab === 'permanent') {
-          fetchPermanentPasses();
-        }
       }, 5000); // Обновляем каждые 5 секунд
       
       return () => clearInterval(pollInterval);
@@ -113,12 +125,8 @@ const SecurityDashboard = () => {
     // Функция для обновления списков
     const refreshLists = () => {
       console.log('🔄 Обновление списков заявок...');
-      // Обновляем список обычных заявок
+      // Обновляем только список обычных заявок (не для личного транспорта)
       fetchPasses(false);
-      // Также обновляем список постоянных пропусков, если открыта соответствующая вкладка
-      if (activeTab === 'permanent') {
-        fetchPermanentPasses();
-      }
     };
 
     // Пытаемся подключиться к SSE
@@ -272,7 +280,7 @@ const SecurityDashboard = () => {
         clearInterval(pollInterval);
       }
     };
-  }, [fetchPasses, fetchPermanentPasses, editingPass, activeTab]);
+  }, [fetchPasses, editingPass, activeTab]);
 
   const clearFilters = () => {
     setFilterDate('');

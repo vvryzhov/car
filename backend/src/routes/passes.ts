@@ -113,8 +113,8 @@ router.get('/all', authenticate, requireRole(['security', 'admin']), async (req:
         query += ` AND (p."isPermanent" IS NULL OR p."isPermanent" = false) AND p.status != 'personal_vehicle'`;
       }
     } else {
-      // Если нет явного фильтра и нет поиска по номеру авто, исключаем постоянные пропуска из обычного списка
-      // (для обратной совместимости с охраной)
+      // Если есть поиск по номеру авто, всегда показываем и личный транспорт
+      // Если нет поиска по номеру и нет явного фильтра, исключаем постоянные пропуска из обычного списка
       if (!vehicleNumber && req.user!.role !== 'admin') {
         query += ` AND (p."isPermanent" IS NULL OR p."isPermanent" = false)`;
       }
@@ -132,8 +132,15 @@ router.get('/all', authenticate, requireRole(['security', 'admin']), async (req:
       paramIndex++;
     }
 
+    // Фильтр по статусу: если есть поиск по номеру авто, не применяем фильтр по статусу к личному транспорту
     if (status) {
-      query += ` AND p.status = $${paramIndex}`;
+      if (vehicleNumber) {
+        // При поиске по номеру показываем все, включая личный транспорт (независимо от статуса)
+        query += ` AND (p.status = $${paramIndex} OR p.status = 'personal_vehicle' OR p."isPermanent" = true)`;
+      } else {
+        // Обычный фильтр по статусу
+        query += ` AND p.status = $${paramIndex}`;
+      }
       params.push(status);
       paramIndex++;
     }
