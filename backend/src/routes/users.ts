@@ -89,7 +89,7 @@ router.get('/', authenticate, requireRole(['admin']), async (req: AuthRequest, r
 router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const user = await dbGet(
-      'SELECT id, email, "fullName", phone, role FROM users WHERE id = $1',
+      'SELECT id, email, "fullName", phone, role, "telegramId" FROM users WHERE id = $1',
       [req.user!.id]
     ) as any;
 
@@ -106,7 +106,11 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
       ) as any[];
     }
 
-    res.json({ ...user, plots: plots || [] });
+    res.json({ 
+      ...user, 
+      plots: plots || [],
+      telegramLinked: !!user.telegramId
+    });
   } catch (error) {
     console.error('Ошибка получения пользователя:', error);
     res.status(500).json({ error: 'Ошибка сервера' });

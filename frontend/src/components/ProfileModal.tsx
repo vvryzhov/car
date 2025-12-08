@@ -15,6 +15,7 @@ interface User {
   phone: string;
   role?: 'user' | 'security' | 'admin' | 'foreman';
   plots?: Plot[];
+  telegramLinked?: boolean;
 }
 
 interface ProfileModalProps {
@@ -40,13 +41,29 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
   const [confirmationCode, setConfirmationCode] = useState('');
   const [emailChangeStep, setEmailChangeStep] = useState<'input' | 'confirm'>('input');
   const [emailChangeLoading, setEmailChangeLoading] = useState(false);
+  
+  // Состояния для привязки Telegram
+  const [telegramLinked, setTelegramLinked] = useState(false);
+  const [telegramLinkToken, setTelegramLinkToken] = useState<string | null>(null);
+  const [telegramLoading, setTelegramLoading] = useState(false);
 
   useEffect(() => {
     // Загружаем участки только для ролей user и foreman
     if (user.role === 'user' || user.role === 'foreman') {
       fetchPlots();
     }
+    // Проверяем статус привязки Telegram
+    checkTelegramStatus();
   }, [user.id, user.role]);
+
+  const checkTelegramStatus = async () => {
+    try {
+      const response = await api.get('/users/me');
+      setTelegramLinked(response.data.telegramLinked || false);
+    } catch (error) {
+      console.error('Ошибка проверки статуса Telegram:', error);
+    }
+  };
 
   const fetchPlots = async () => {
     try {
@@ -94,6 +111,60 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
       setError(err.response?.data?.error || 'Ошибка подтверждения смены email');
     } finally {
       setEmailChangeLoading(false);
+    }
+  };
+
+  const handleTelegramLink = async () => {
+    setError('');
+    setTelegramLoading(true);
+
+    try {
+      const response = await api.get('/users/me/telegram-link-token');
+      setTelegramLinkToken(response.data.token);
+      setError('');
+      // Копируем код в буфер обмена
+      try {
+        await navigator.clipboard.writeText(response.data.token);
+      } catch (e) {
+        // Игнорируем ошибки копирования
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Ошибка получения кода привязки');
+    } finally {
+      setTelegramLoading(false);
+    }
+  };
+
+  const handleTelegramUnlink = async () => {
+    if (!window.confirm('Вы уверены, что хотите отвязать Telegram?')) {
+      return;
+    }
+
+    setError('');
+    setTelegramLoading(true);
+
+    try {
+      await api.post('/users/me/telegram-unlink');
+      setTelegramLinked(false);
+      setTelegramLinkToken(null);
+      await checkTelegramStatus();
+      setError('');
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Ошибка отвязки Telegram');
+    } finally {
+      setTelegramLoading(false);
+    }
+  };
+
+  const copyTokenToClipboard = async () => {
+    if (telegramLinkToken) {
+      try {
+        await navigator.clipboard.writeText(telegramLinkToken);
+        setError('');
+        // Можно показать временное сообщение об успехе
+      } catch (e) {
+        setError('Не удалось скопировать код');
+      }
     }
   };
 
@@ -343,6 +414,83 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
               placeholder="8(999)111-22-33"
               required
             />
+          </div>
+
+          <div className="form-group">
+            <label>Telegram</label>
+            {telegramLinkToken ? (
+              <div style={{ marginTop: '10px', padding: '15px', backgroundColor: '#e7f3ff', borderRadius: '4px', border: '1px solid #b3d9ff' }}>
+                <p style={{ margin: '0 0 10px 0', fontWeight: 'bold' }}>📱 Код привязки Telegram:</p>
+                <div style={{ 
+                  padding: '10px', 
+                  backgroundColor: 'white', 
+                  borderRadius: '4px', 
+                  fontFamily: 'monospace', 
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  textAlign: 'center',
+                  marginBottom: '10px',
+                  letterSpacing: '2px',
+                  cursor: 'pointer',
+                  position: 'relative'
+                }} onClick={copyTokenToClipboard} title="Нажмите для копирования">
+                  {telegramLinkToken}
+                </div>
+                <p style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#666' }}>
+                  Откройте бота в Telegram и отправьте команду:
+                </p>
+                <div style={{ 
+                  padding: '8px', 
+                  backgroundColor: 'white', 
+                  borderRadius: '4px',
+                  fontFamily: 'monospace',
+                  fontSize: '14px',
+                  marginBottom: '10px'
+                }}>
+                  /link {telegramLinkToken}
+                </div>
+                <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#666' }}>
+                  ⏱ Код действителен 15 минут. Код скопирован в буфер обмена.
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setTelegramLinkToken(null);
+                    checkTelegramStatus();
+                  }}
+                  style={{ marginTop: '10px' }}
+                >
+                  Отменить
+                </button>
+              </div>
+            ) : telegramLinked ? (
+              <div style={{ marginTop: '10px' }}>
+                <p style={{ color: '#28a745', marginBottom: '10px' }}>✅ Telegram привязан</p>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleTelegramUnlink}
+                  disabled={telegramLoading}
+                >
+                  {telegramLoading ? 'Отвязка...' : 'Отвязать Telegram'}
+                </button>
+              </div>
+            ) : (
+              <div style={{ marginTop: '10px' }}>
+                <p style={{ color: '#666', marginBottom: '10px', fontSize: '14px' }}>
+                  Telegram не привязан. Привяжите для создания заявок через бота.
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleTelegramLink}
+                  disabled={telegramLoading}
+                >
+                  {telegramLoading ? 'Получение кода...' : '📱 Привязать Telegram'}
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="form-group">
