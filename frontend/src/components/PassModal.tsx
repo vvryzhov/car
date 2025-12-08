@@ -294,7 +294,7 @@ const PassModal = ({ pass, user, onClose, onSave }: PassModalProps) => {
               id="vehicleNumber"
               value={vehicleNumber}
               onChange={(e) => {
-                setVehicleNumber(e.target.value);
+                setVehicleNumber(e.target.value.toUpperCase());
                 // Очищаем ошибку при вводе
                 if (error && error.includes('номер')) {
                   setError('');
