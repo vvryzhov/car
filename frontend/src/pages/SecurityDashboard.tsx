@@ -33,11 +33,12 @@ const SecurityDashboard = () => {
   // Получаем текущую дату в формате YYYY-MM-DD (Москва)
   const getMoscowDate = () => {
     const now = new Date();
-    // Москва UTC+3
-    const moscowTime = new Date(now.getTime() + (3 * 60 * 60 * 1000));
-    const year = moscowTime.getUTCFullYear();
-    const month = String(moscowTime.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(moscowTime.getUTCDate()).padStart(2, '0');
+    // Москва UTC+3 (или UTC+2 в зависимости от времени года, но для простоты используем UTC+3)
+    // Используем toLocaleString для получения локального времени в Москве
+    const moscowDate = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Moscow' }));
+    const year = moscowDate.getFullYear();
+    const month = String(moscowDate.getMonth() + 1).padStart(2, '0');
+    const day = String(moscowDate.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
   
