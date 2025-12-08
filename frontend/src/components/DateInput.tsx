@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface DateInputProps {
   value: string; // Формат YYYY-MM-DD для внутреннего хранения
@@ -9,6 +9,10 @@ interface DateInputProps {
 }
 
 const DateInput = ({ value, onChange, id, required, disabled }: DateInputProps) => {
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  const [displayValue, setDisplayValue] = useState('');
+  const [showCalendar, setShowCalendar] = useState(false);
+
   // Конвертация YYYY-MM-DD в DD-MM-YYYY для отображения
   const formatDateForDisplay = (dateStr: string): string => {
     if (!dateStr) return '';
@@ -47,27 +51,32 @@ const DateInput = ({ value, onChange, id, required, disabled }: DateInputProps) 
     return null;
   };
 
-  const [displayValue, setDisplayValue] = useState(formatDateForDisplay(value));
-
   useEffect(() => {
     setDisplayValue(formatDateForDisplay(value));
   }, [value]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value;
     setDisplayValue(input);
     
     const parsed = parseDateInput(input);
     if (parsed) {
       onChange(parsed);
+      // Синхронизируем скрытый input для календаря
+      if (dateInputRef.current) {
+        dateInputRef.current.value = parsed;
+      }
     }
   };
 
-  const handleBlur = () => {
+  const handleTextBlur = () => {
     const parsed = parseDateInput(displayValue);
     if (parsed) {
       setDisplayValue(formatDateForDisplay(parsed));
       onChange(parsed);
+      if (dateInputRef.current) {
+        dateInputRef.current.value = parsed;
+      }
     } else if (displayValue) {
       // Если введено что-то невалидное, пробуем исправить или сбрасываем
       const currentParsed = parseDateInput(value);
@@ -79,22 +88,77 @@ const DateInput = ({ value, onChange, id, required, disabled }: DateInputProps) 
     }
   };
 
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const dateValue = e.target.value;
+    if (dateValue) {
+      onChange(dateValue);
+      setDisplayValue(formatDateForDisplay(dateValue));
+    }
+  };
+
+  const handleCalendarClick = () => {
+    if (dateInputRef.current && !disabled) {
+      dateInputRef.current.showPicker?.();
+    }
+  };
+
   return (
-    <input
-      type="text"
-      id={id}
-      value={displayValue}
-      onChange={handleChange}
-      onBlur={handleBlur}
-      placeholder="дд-мм-гггг"
-      required={required}
-      disabled={disabled}
-      pattern="\d{2}-\d{2}-\d{4}"
-      maxLength={10}
-      style={{
-        fontFamily: 'monospace',
-      }}
-    />
+    <div style={{ position: 'relative', display: 'inline-block', width: '100%' }}>
+      {/* Скрытый input для календаря */}
+      <input
+        ref={dateInputRef}
+        type="date"
+        value={value || ''}
+        onChange={handleDateChange}
+        style={{
+          position: 'absolute',
+          opacity: 0,
+          width: '100%',
+          height: '100%',
+          cursor: 'pointer',
+          zIndex: 1,
+        }}
+        disabled={disabled}
+      />
+      {/* Видимое текстовое поле */}
+      <input
+        type="text"
+        id={id}
+        value={displayValue}
+        onChange={handleTextChange}
+        onBlur={handleTextBlur}
+        onClick={handleCalendarClick}
+        placeholder="дд-мм-гггг или выберите дату"
+        required={required}
+        disabled={disabled}
+        pattern="\d{2}-\d{2}-\d{4}"
+        maxLength={10}
+        style={{
+          fontFamily: 'monospace',
+          width: '100%',
+          paddingRight: '30px',
+          position: 'relative',
+          zIndex: 0,
+        }}
+      />
+      {/* Иконка календаря */}
+      <span
+        onClick={handleCalendarClick}
+        style={{
+          position: 'absolute',
+          right: '8px',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          pointerEvents: disabled ? 'none' : 'auto',
+          zIndex: 2,
+          fontSize: '16px',
+          userSelect: 'none',
+        }}
+      >
+        📅
+      </span>
+    </div>
   );
 };
 
