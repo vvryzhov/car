@@ -22,9 +22,10 @@
 
 ## Технологии
 
-- **Backend**: Node.js, Express, TypeScript, SQLite
+- **Backend**: Node.js, Express, TypeScript, PostgreSQL
 - **Frontend**: React, TypeScript, Vite
 - **Аутентификация**: JWT
+- **Telegram Bot**: node-telegram-bot-api (опционально)
 
 ## Установка и запуск
 
@@ -44,6 +45,8 @@ docker-compose up -d
 3. Откройте браузер и перейдите на `http://localhost:8080`
 
 Приложение будет доступно на порту 8080. Backend работает на порту 3001 внутри Docker сети.
+
+**Примечание**: Для работы Telegram бота добавьте `TELEGRAM_BOT_TOKEN` в файл `.env`. Подробные инструкции см. в [TELEGRAM_BOT_SETUP.md](./TELEGRAM_BOT_SETUP.md)
 
 Для остановки:
 ```bash

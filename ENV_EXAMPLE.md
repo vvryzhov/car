@@ -28,6 +28,10 @@ FRONTEND_URL=http://localhost:8080
 # SMTP_PASSWORD=your-app-password
 # SMTP_FROM_EMAIL=noreply@yourdomain.com
 # SMTP_FROM_NAME=Система управления пропусками
+
+# Telegram Bot Token (опционально, для работы Telegram бота)
+# Получите токен у @BotFather в Telegram
+# TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
 ```
 
 ## Как изменить URL для ссылок восстановления пароля
