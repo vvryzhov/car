@@ -336,7 +336,7 @@ const PassForm = ({ pass, user, onCancel, onSave }: PassFormProps) => {
 
           {error && <div className="error">{error}</div>}
 
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'space-between', marginTop: '20px' }}>
             <button type="button" className="btn btn-secondary" onClick={onCancel}>
               Отмена
             </button>
