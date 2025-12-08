@@ -35,6 +35,10 @@ router.get('/events', (req: express.Request, res: Response, next: express.NextFu
   res.setTimeout(0);
   req.setTimeout(0);
 
+  // Отправляем заголовки немедленно
+  res.flushHeaders();
+  console.log(`📤 Заголовки отправлены для пользователя ${req.user!.id}`);
+
   // Не закрываем соединение автоматически
   res.on('close', () => {
     console.log(`🔌 Response закрыт для пользователя ${req.user!.id}`);
@@ -48,6 +52,10 @@ router.get('/events', (req: express.Request, res: Response, next: express.NextFu
   try {
     res.write(': connected\n\n');
     console.log(`📤 Начальное сообщение отправлено пользователю ${req.user!.id}`);
+    // Принудительно сбрасываем буфер
+    if (typeof (res as any).flush === 'function') {
+      (res as any).flush();
+    }
   } catch (error) {
     console.error('Ошибка отправки начального сообщения:', error);
   }

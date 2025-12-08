@@ -15,7 +15,9 @@ export const broadcastEvent = (event: string, data: any) => {
   let sentCount = 0;
   let errorCount = 0;
   
-  clients.forEach((client, index) => {
+  let clientIndex = 0;
+  clients.forEach((client) => {
+    const index = clientIndex++;
     try {
       // Проверяем, что соединение еще активно
       if (!client.writable || client.destroyed) {
@@ -28,6 +30,12 @@ export const broadcastEvent = (event: string, data: any) => {
       // Пытаемся отправить сообщение
       const written = client.write(message);
       console.log(`📤 Клиент #${index}: сообщение отправлено, written=${written}`);
+      
+      // Принудительно сбрасываем буфер, если доступно
+      if (written && typeof (client as any).flush === 'function') {
+        (client as any).flush();
+      }
+      
       sentCount++;
     } catch (error: any) {
       // Если клиент отключился, удаляем его из списка
