@@ -91,6 +91,16 @@ export const initDatabase = async () => {
       await dbRun('ALTER TABLE users ADD COLUMN "deactivationDate" DATE');
     }
 
+    // Добавляем поле telegramId, если его нет
+    const telegramIdCheck = await dbGet(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name='users' AND column_name='telegramId'
+    `);
+    if (!telegramIdCheck) {
+      await dbRun('ALTER TABLE users ADD COLUMN "telegramId" BIGINT UNIQUE');
+    }
+
     // Таблица заявок на пропуск
     await dbRun(`
       CREATE TABLE IF NOT EXISTS passes (
@@ -198,6 +208,19 @@ export const initDatabase = async () => {
         "oldEmail" VARCHAR(255) NOT NULL,
         "newEmail" VARCHAR(255) NOT NULL,
         code VARCHAR(6) NOT NULL,
+        "expiresAt" TIMESTAMP NOT NULL,
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
+    // Таблица токенов привязки Telegram аккаунта
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS telegram_link_tokens (
+        id SERIAL PRIMARY KEY,
+        "userId" INTEGER NOT NULL,
+        token VARCHAR(32) NOT NULL UNIQUE,
+        "telegramId" BIGINT NOT NULL,
         "expiresAt" TIMESTAMP NOT NULL,
         "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE

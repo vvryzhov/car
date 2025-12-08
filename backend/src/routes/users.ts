@@ -1286,4 +1286,47 @@ router.post(
   }
 );
 
+// Получить токен для привязки Telegram
+router.get('/me/telegram-link-token', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await dbGet('SELECT id FROM users WHERE id = $1', [req.user!.id]) as any;
+    if (!user) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    // Проверяем, не привязан ли уже Telegram
+    const existingTelegramId = await dbGet('SELECT "telegramId" FROM users WHERE id = $1', [req.user!.id]) as any;
+    if (existingTelegramId && existingTelegramId.telegramId) {
+      return res.status(400).json({ error: 'Telegram уже привязан к этому аккаунту' });
+    }
+
+    // Генерируем токен (Telegram ID будет получен позже из бота)
+    const { generateTelegramLinkToken } = await import('../services/telegramBot');
+    const telegramId = 0; // Временное значение, будет обновлено при привязке
+    
+    // Сначала пытаемся получить Telegram ID из запроса (если пользователь уже начал диалог с ботом)
+    // Но пока используем 0, так как мы не знаем Telegram ID до привязки
+    const token = await generateTelegramLinkToken(req.user!.id, 0);
+
+    res.json({ 
+      token,
+      instructions: 'Используйте команду /link в Telegram боте с этим кодом для привязки аккаунта'
+    });
+  } catch (error) {
+    console.error('Ошибка генерации токена привязки:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Отвязать Telegram от аккаунта
+router.post('/me/telegram-unlink', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    await dbRun('UPDATE users SET "telegramId" = NULL WHERE id = $1', [req.user!.id]);
+    res.json({ message: 'Telegram успешно отвязан' });
+  } catch (error) {
+    console.error('Ошибка отвязки Telegram:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 export default router;

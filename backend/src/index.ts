@@ -6,6 +6,7 @@ import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
 import passRoutes from './routes/passes';
 import settingsRoutes from './routes/settings';
+import { initTelegramBot } from './services/telegramBot';
 
 dotenv.config();
 
@@ -24,6 +25,9 @@ app.use('/api/settings', settingsRoutes);
 // Инициализация базы данных и запуск сервера
 initDatabase()
   .then(() => {
+    // Инициализация Telegram бота
+    initTelegramBot();
+    
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`Сервер запущен на порту ${PORT}`);
     });

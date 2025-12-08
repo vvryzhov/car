@@ -22,7 +22,8 @@
     "nodemailer": "^6.9.7",
     "multer": "^1.4.5-lts.1",
     "csv-parse": "^5.5.3",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "node-telegram-bot-api": "^0.64.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
