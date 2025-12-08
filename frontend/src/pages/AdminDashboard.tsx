@@ -705,11 +705,17 @@ const AdminDashboard = () => {
                           <td data-label="Комментарий">{pass.comment || '-'}</td>
                           <td data-label="Комментарий охраны">{pass.securityComment || '-'}</td>
                           <td data-label="Статус">
-                            <span className={`badge badge-${pass.status}`}>
-                              {pass.status === 'pending' ? 'Ожидает' : 
-                               pass.status === 'activated' ? 'Заехал' : 
-                               'Отклонено'}
-                            </span>
+                            {pass.status === 'personal_vehicle' ? (
+                              <span className="badge badge-personal_vehicle">
+                                Личный транспорт
+                              </span>
+                            ) : (
+                              <span className={`badge badge-${pass.status}`}>
+                                {pass.status === 'pending' ? 'Ожидает' : 
+                                 pass.status === 'activated' ? 'Заехал' : 
+                                 'Отклонено'}
+                              </span>
+                            )}
                           </td>
                           <td data-label="Дата создания">
                             {format(new Date(pass.createdAt), 'dd.MM.yyyy HH:mm')}

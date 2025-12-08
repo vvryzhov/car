@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { formatPhone } from '../utils/phoneFormatter';
+import PermanentPassesManager from './PermanentPassesManager';
 
 interface Plot {
   id: number;
@@ -496,6 +497,11 @@ const ProfileForm = ({ user, onCancel, onSave }: ProfileFormProps) => {
               </div>
             )}
           </div>
+
+          {/* Постоянные пропуска (только для user и foreman) */}
+          {(user.role === 'user' || user.role === 'foreman') && (
+            <PermanentPassesManager userId={user.id} />
+          )}
 
           <div className="form-group">
             <button

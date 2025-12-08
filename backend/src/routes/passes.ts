@@ -48,7 +48,7 @@ router.get('/events', (req: express.Request, res: Response, next: express.NextFu
 // Получить все заявки (для охраны и админа)
 router.get('/all', authenticate, requireRole(['security', 'admin']), async (req: AuthRequest, res: Response) => {
   try {
-    const { date, vehicleType, includeDeleted, userId, plotNumber, status } = req.query;
+    const { date, vehicleType, includeDeleted, userId, plotNumber, status, vehicleNumber } = req.query;
     let query = `
       SELECT p.*, u."fullName", u.phone, p."plotNumber"
       FROM passes p
@@ -60,6 +60,12 @@ router.get('/all', authenticate, requireRole(['security', 'admin']), async (req:
 
     if (includeDeleted !== 'true') {
       query += ` AND p."deletedAt" IS NULL`;
+    }
+
+    // Если есть поиск по номеру авто, показываем и постоянные пропуска
+    // Иначе исключаем постоянные пропуска из обычного списка
+    if (!vehicleNumber) {
+      query += ` AND (p."isPermanent" IS NULL OR p."isPermanent" = false)`;
     }
 
     if (date) {
@@ -92,7 +98,13 @@ router.get('/all', authenticate, requireRole(['security', 'admin']), async (req:
       paramIndex++;
     }
 
-    query += ' ORDER BY p."entryDate" DESC, p."createdAt" DESC';
+    if (vehicleNumber) {
+      query += ` AND p."vehicleNumber" ILIKE $${paramIndex}`;
+      params.push(`%${vehicleNumber}%`);
+      paramIndex++;
+    }
+
+    query += ' ORDER BY p."isPermanent" DESC, p."entryDate" DESC, p."createdAt" DESC';
 
     const passes = await dbAll(query, params) as any[];
     res.json(passes);
@@ -105,8 +117,12 @@ router.get('/all', authenticate, requireRole(['security', 'admin']), async (req:
 // Получить заявки текущего пользователя
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
+    // Исключаем постоянные пропуска из обычного списка (они показываются отдельно в профиле)
     const passes = await dbAll(
-      'SELECT * FROM passes WHERE "userId" = $1 AND "deletedAt" IS NULL ORDER BY "entryDate" DESC, "createdAt" DESC',
+      `SELECT * FROM passes 
+       WHERE "userId" = $1 AND "deletedAt" IS NULL 
+       AND ("isPermanent" IS NULL OR "isPermanent" = false)
+       ORDER BY "entryDate" DESC, "createdAt" DESC`,
       [req.user!.id]
     ) as any[];
     res.json(passes);

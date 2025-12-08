@@ -23,12 +23,16 @@ interface Pass {
 
 const SecurityDashboard = () => {
   const { user, logout } = useAuth();
+  const [activeTab, setActiveTab] = useState<'passes' | 'permanent'>('passes');
   const [passes, setPasses] = useState<Pass[]>([]);
+  const [permanentPasses, setPermanentPasses] = useState<Pass[]>([]);
   const [loading, setLoading] = useState(true);
+  const [permanentLoading, setPermanentLoading] = useState(false);
   const [filterDate, setFilterDate] = useState('');
   const [filterVehicleType, setFilterVehicleType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterPlotNumber, setFilterPlotNumber] = useState('');
+  const [filterVehicleNumber, setFilterVehicleNumber] = useState('');
   const [editingPass, setEditingPass] = useState<Pass | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState<number | null>(null);
 
@@ -42,6 +46,7 @@ const SecurityDashboard = () => {
       if (filterVehicleType) params.vehicleType = filterVehicleType;
       if (filterStatus) params.status = filterStatus;
       if (filterPlotNumber) params.plotNumber = filterPlotNumber;
+      if (filterVehicleNumber) params.vehicleNumber = filterVehicleNumber;
 
       const response = await api.get('/passes/all', { params });
       setPasses(response.data);
@@ -52,7 +57,28 @@ const SecurityDashboard = () => {
         setLoading(false);
       }
     }
-  }, [filterDate, filterVehicleType, filterStatus, filterPlotNumber]);
+  }, [filterDate, filterVehicleType, filterStatus, filterPlotNumber, filterVehicleNumber]);
+
+  const fetchPermanentPasses = useCallback(async () => {
+    try {
+      setPermanentLoading(true);
+      const params: any = {};
+      if (filterVehicleNumber) params.vehicleNumber = filterVehicleNumber;
+
+      const response = await api.get('/users/permanent-passes', { params });
+      setPermanentPasses(response.data);
+    } catch (error) {
+      console.error('Ошибка загрузки постоянных пропусков:', error);
+    } finally {
+      setPermanentLoading(false);
+    }
+  }, [filterVehicleNumber]);
+
+  useEffect(() => {
+    if (activeTab === 'permanent') {
+      fetchPermanentPasses();
+    }
+  }, [activeTab, fetchPermanentPasses]);
 
   useEffect(() => {
     fetchPasses();
@@ -103,6 +129,7 @@ const SecurityDashboard = () => {
     setFilterVehicleType('');
     setFilterStatus('');
     setFilterPlotNumber('');
+    setFilterVehicleNumber('');
   };
 
   const handleStatusToggle = async (pass: Pass) => {
@@ -157,8 +184,26 @@ const SecurityDashboard = () => {
 
       <div className="container">
         <div className="card">
-          <h2>Заявки на пропуск</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h2 style={{ margin: 0 }}>Заявки на пропуск</h2>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                className={`btn ${activeTab === 'passes' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setActiveTab('passes')}
+              >
+                Обычные заявки
+              </button>
+              <button
+                className={`btn ${activeTab === 'permanent' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setActiveTab('permanent')}
+              >
+                Личный транспорт
+              </button>
+            </div>
+          </div>
 
+          {activeTab === 'passes' && (
+            <>
           <div className="filters">
             <div className="form-group">
               <label htmlFor="filterDate">Дата въезда</label>
@@ -202,6 +247,17 @@ const SecurityDashboard = () => {
                 value={filterPlotNumber}
                 onChange={(e) => setFilterPlotNumber(e.target.value)}
                 placeholder="Номер участка"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="filterVehicleNumber">Номер авто</label>
+              <input
+                type="text"
+                id="filterVehicleNumber"
+                value={filterVehicleNumber}
+                onChange={(e) => setFilterVehicleNumber(e.target.value.toUpperCase())}
+                placeholder="Поиск по номеру"
+                style={{ textTransform: 'uppercase' }}
               />
             </div>
             <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end' }}>
@@ -250,7 +306,11 @@ const SecurityDashboard = () => {
                     <td data-label="Комментарий">{pass.comment || '-'}</td>
                     <td data-label="Комментарий охраны">{pass.securityComment || '-'}</td>
                     <td data-label="Статус">
-                      {pass.status === 'pending' || pass.status === 'activated' ? (
+                      {pass.status === 'personal_vehicle' ? (
+                        <span className="badge badge-personal_vehicle">
+                          Личный транспорт
+                        </span>
+                      ) : pass.status === 'pending' || pass.status === 'activated' ? (
                         <button
                           className={`btn ${pass.status === 'pending' ? 'btn-warning' : 'btn-success'}`}
                           onClick={() => handleStatusToggle(pass)}
@@ -285,6 +345,74 @@ const SecurityDashboard = () => {
               </tbody>
               </table>
             </div>
+          )}
+            </>
+          )}
+
+          {activeTab === 'permanent' && (
+            <>
+              <div className="filters" style={{ marginBottom: '20px' }}>
+                <div className="form-group">
+                  <label htmlFor="filterVehicleNumberPermanent">Номер авто</label>
+                  <input
+                    type="text"
+                    id="filterVehicleNumberPermanent"
+                    value={filterVehicleNumber}
+                    onChange={(e) => setFilterVehicleNumber(e.target.value.toUpperCase())}
+                    placeholder="Поиск по номеру"
+                    style={{ textTransform: 'uppercase' }}
+                  />
+                </div>
+                <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end' }}>
+                  <button className="btn btn-secondary" onClick={() => setFilterVehicleNumber('')}>
+                    Сбросить
+                  </button>
+                </div>
+              </div>
+
+              {permanentLoading ? (
+                <div className="loading">Загрузка...</div>
+              ) : permanentPasses.length === 0 ? (
+                <div className="empty-state">
+                  <p>Постоянных пропусков не найдено</p>
+                </div>
+              ) : (
+                <div className="table-wrapper">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>ФИО</th>
+                        <th>Телефон</th>
+                        <th>Тип транспорта</th>
+                        <th>Марка авто</th>
+                        <th>Номер авто</th>
+                        <th>Адрес</th>
+                        <th>Комментарий</th>
+                        <th>Статус</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {permanentPasses.map((pass) => (
+                        <tr key={pass.id}>
+                          <td data-label="ФИО">{pass.fullName}</td>
+                          <td data-label="Телефон">{pass.phone}</td>
+                          <td data-label="Тип транспорта">{pass.vehicleType}</td>
+                          <td data-label="Марка авто">{pass.vehicleBrand || '-'}</td>
+                          <td data-label="Номер авто">{pass.vehicleNumber}</td>
+                          <td data-label="Адрес">{pass.address}</td>
+                          <td data-label="Комментарий">{pass.comment || '-'}</td>
+                          <td data-label="Статус">
+                            <span className="badge badge-personal_vehicle">
+                              Личный транспорт
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

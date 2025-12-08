@@ -163,6 +163,17 @@ export const initDatabase = async () => {
       await dbRun('ALTER TABLE passes ADD COLUMN "vehicleBrand" VARCHAR(100)');
     }
 
+    // Добавляем поле isPermanent для постоянных пропусков
+    const isPermanentCheck = await dbGet(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name='passes' AND column_name='isPermanent'
+    `);
+    
+    if (!isPermanentCheck) {
+      await dbRun('ALTER TABLE passes ADD COLUMN "isPermanent" BOOLEAN DEFAULT false');
+    }
+
     // Таблица настроек SMTP
     await dbRun(`
       CREATE TABLE IF NOT EXISTS smtp_settings (

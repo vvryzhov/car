@@ -166,11 +166,17 @@ const Dashboard = () => {
                       <td data-label="Адрес">{pass.address}</td>
                       <td data-label="Комментарий">{pass.comment || '-'}</td>
                       <td data-label="Статус">
-                        <span className={`badge badge-${pass.status}`}>
-                          {pass.status === 'pending' ? 'Ожидает' : 
-                           pass.status === 'activated' ? 'Заехал' : 
-                           'Отклонено'}
-                        </span>
+                        {pass.status === 'personal_vehicle' ? (
+                          <span className="badge badge-personal_vehicle">
+                            Личный транспорт
+                          </span>
+                        ) : (
+                          <span className={`badge badge-${pass.status}`}>
+                            {pass.status === 'pending' ? 'Ожидает' : 
+                             pass.status === 'activated' ? 'Заехал' : 
+                             'Отклонено'}
+                          </span>
+                        )}
                       </td>
                       <td data-label="Действия">
                         {pass.status === 'activated' ? (

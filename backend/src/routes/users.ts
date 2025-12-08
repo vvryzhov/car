@@ -1333,4 +1333,171 @@ router.post('/me/telegram-unlink', authenticate, async (req: AuthRequest, res: R
   }
 });
 
+// Получить постоянные пропуска текущего пользователя
+router.get('/me/permanent-passes', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const passes = await dbAll(
+      `SELECT * FROM passes 
+       WHERE "userId" = $1 AND "isPermanent" = true AND "deletedAt" IS NULL 
+       ORDER BY "createdAt" DESC`,
+      [req.user!.id]
+    ) as any[];
+    res.json(passes);
+  } catch (error) {
+    console.error('Ошибка получения постоянных пропусков:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Создать постоянный пропуск
+router.post('/me/permanent-passes', authenticate, requireRole(['user', 'foreman', 'admin']), [
+  body('vehicleType').isIn(['грузовой', 'легковой']).withMessage('Тип транспорта должен быть грузовой или легковой'),
+  body('vehicleBrand').notEmpty().withMessage('Марка авто обязательна'),
+  body('vehicleNumber').notEmpty().withMessage('Номер авто обязателен'),
+], async (req: AuthRequest, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { vehicleType, vehicleBrand, vehicleNumber, comment } = req.body;
+
+  // Валидация номера автомобиля
+  const { validateVehicleNumber } = await import('../utils/vehicleNumberValidator');
+  const numberValidation = validateVehicleNumber(vehicleNumber);
+  if (!numberValidation.valid) {
+    return res.status(400).json({ error: numberValidation.error });
+  }
+
+  try {
+    // Получаем первый участок пользователя для адреса
+    const plots = await dbAll('SELECT * FROM plots WHERE "userId" = $1 LIMIT 1', [req.user!.id]) as any[];
+    if (plots.length === 0) {
+      return res.status(400).json({ error: 'У вас нет добавленных участков' });
+    }
+
+    const plot = plots[0];
+    const address = plot.address || plot.plotNumber;
+
+    // Создаем постоянный пропуск (без даты въезда, статус personal_vehicle)
+    const result = await dbRun(
+      `INSERT INTO passes ("userId", "vehicleType", "vehicleBrand", "vehicleNumber", "entryDate", address, "plotNumber", comment, "isPermanent", status) 
+       VALUES ($1, $2, $3, $4, CURRENT_DATE, $5, $6, $7, true, 'personal_vehicle') 
+       RETURNING id`,
+      [req.user!.id, vehicleType, vehicleBrand, vehicleNumber, address, plot.plotNumber, comment || null]
+    );
+
+    const pass = await dbGet('SELECT * FROM passes WHERE id = $1', [result.rows?.[0]?.id]) as any;
+    res.status(201).json(pass);
+  } catch (error) {
+    console.error('Ошибка создания постоянного пропуска:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Обновить постоянный пропуск
+router.put('/me/permanent-passes/:id', authenticate, requireRole(['user', 'foreman', 'admin']), [
+  body('vehicleType').optional().isIn(['грузовой', 'легковой']).withMessage('Тип транспорта должен быть грузовой или легковой'),
+  body('vehicleBrand').optional().notEmpty().withMessage('Марка авто не может быть пустой'),
+  body('vehicleNumber').optional().notEmpty().withMessage('Номер авто не может быть пустым'),
+], async (req: AuthRequest, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    // Проверяем, что пропуск принадлежит пользователю и является постоянным
+    const pass = await dbGet('SELECT * FROM passes WHERE id = $1 AND "userId" = $2 AND "isPermanent" = true', 
+      [req.params.id, req.user!.id]) as any;
+    
+    if (!pass) {
+      return res.status(404).json({ error: 'Постоянный пропуск не найден' });
+    }
+
+    const { vehicleType, vehicleBrand, vehicleNumber, comment } = req.body;
+
+    // Валидация номера, если он изменяется
+    if (vehicleNumber && vehicleNumber !== pass.vehicleNumber) {
+      const { validateVehicleNumber } = await import('../utils/vehicleNumberValidator');
+      const numberValidation = validateVehicleNumber(vehicleNumber);
+      if (!numberValidation.valid) {
+        return res.status(400).json({ error: numberValidation.error });
+      }
+    }
+
+    // Обновляем пропуск
+    await dbRun(
+      `UPDATE passes 
+       SET "vehicleType" = COALESCE($1, "vehicleType"),
+           "vehicleBrand" = COALESCE($2, "vehicleBrand"),
+           "vehicleNumber" = COALESCE($3, "vehicleNumber"),
+           comment = COALESCE($4, comment)
+       WHERE id = $5`,
+      [
+        vehicleType || pass.vehicleType,
+        vehicleBrand || pass.vehicleBrand,
+        vehicleNumber || pass.vehicleNumber,
+        comment !== undefined ? comment : pass.comment,
+        req.params.id
+      ]
+    );
+
+    const updatedPass = await dbGet('SELECT * FROM passes WHERE id = $1', [req.params.id]) as any;
+    res.json(updatedPass);
+  } catch (error) {
+    console.error('Ошибка обновления постоянного пропуска:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Удалить постоянный пропуск
+router.delete('/me/permanent-passes/:id', authenticate, requireRole(['user', 'foreman', 'admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    // Проверяем, что пропуск принадлежит пользователю и является постоянным
+    const pass = await dbGet('SELECT * FROM passes WHERE id = $1 AND "userId" = $2 AND "isPermanent" = true', 
+      [req.params.id, req.user!.id]) as any;
+    
+    if (!pass) {
+      return res.status(404).json({ error: 'Постоянный пропуск не найден' });
+    }
+
+    // Мягкое удаление
+    await dbRun('UPDATE passes SET "deletedAt" = CURRENT_TIMESTAMP WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Постоянный пропуск удален' });
+  } catch (error) {
+    console.error('Ошибка удаления постоянного пропуска:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Получить все постоянные пропуска (для охраны и админов)
+router.get('/permanent-passes', authenticate, requireRole(['security', 'admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { vehicleNumber } = req.query;
+    let query = `
+      SELECT p.*, u."fullName", u.phone
+      FROM passes p
+      JOIN users u ON p."userId" = u.id
+      WHERE p."isPermanent" = true AND p."deletedAt" IS NULL
+    `;
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (vehicleNumber) {
+      query += ` AND p."vehicleNumber" ILIKE $${paramIndex}`;
+      params.push(`%${vehicleNumber}%`);
+      paramIndex++;
+    }
+
+    query += ' ORDER BY p."createdAt" DESC';
+
+    const passes = await dbAll(query, params) as any[];
+    res.json(passes);
+  } catch (error) {
+    console.error('Ошибка получения постоянных пропусков:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 export default router;
