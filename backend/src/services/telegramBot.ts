@@ -19,6 +19,13 @@ interface UserState {
 const userStates = new Map<number, UserState>();
 
 export const initTelegramBot = () => {
+  // Отладочная информация
+  const tokenFromEnv = process.env.TELEGRAM_BOT_TOKEN;
+  console.log('🔍 Проверка TELEGRAM_BOT_TOKEN:');
+  console.log(`   - process.env.TELEGRAM_BOT_TOKEN существует: ${!!tokenFromEnv}`);
+  console.log(`   - Длина токена: ${tokenFromEnv ? tokenFromEnv.length : 0}`);
+  console.log(`   - Первые 10 символов: ${tokenFromEnv ? tokenFromEnv.substring(0, 10) + '...' : 'нет'}`);
+  
   if (!TELEGRAM_BOT_TOKEN) {
     console.log('⚠️ TELEGRAM_BOT_TOKEN не установлен, бот не будет запущен');
     return null;
