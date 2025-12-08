@@ -171,7 +171,11 @@ export const initDatabase = async () => {
     `);
     
     if (!isPermanentCheck) {
+      console.log('Добавление поля isPermanent в таблицу passes...');
       await dbRun('ALTER TABLE passes ADD COLUMN "isPermanent" BOOLEAN DEFAULT false');
+      console.log('Поле isPermanent успешно добавлено');
+    } else {
+      console.log('Поле isPermanent уже существует в таблице passes');
     }
 
     // Таблица настроек SMTP

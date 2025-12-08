@@ -1373,11 +1373,21 @@ router.post('/me/permanent-passes', authenticate, requireRole(['user', 'foreman'
     // Получаем первый участок пользователя для адреса
     const plots = await dbAll('SELECT * FROM plots WHERE "userId" = $1 LIMIT 1', [req.user!.id]) as any[];
     if (plots.length === 0) {
+      console.error('У пользователя нет участков:', req.user!.id);
       return res.status(400).json({ error: 'У вас нет добавленных участков' });
     }
 
     const plot = plots[0];
     const address = plot.address || plot.plotNumber;
+    
+    console.log('Создание постоянного пропуска:', {
+      userId: req.user!.id,
+      vehicleType,
+      vehicleBrand,
+      vehicleNumber,
+      address,
+      plotNumber: plot.plotNumber
+    });
 
     // Создаем постоянный пропуск (без даты въезда, статус personal_vehicle)
     const result = await dbRun(
@@ -1387,11 +1397,26 @@ router.post('/me/permanent-passes', authenticate, requireRole(['user', 'foreman'
       [req.user!.id, vehicleType, vehicleBrand, vehicleNumber, address, plot.plotNumber, comment || null]
     );
 
-    const pass = await dbGet('SELECT * FROM passes WHERE id = $1', [result.rows?.[0]?.id]) as any;
+    const newPassId = result.rows?.[0]?.id || result.lastID;
+    if (!newPassId) {
+      console.error('Не удалось получить ID созданного пропуска:', result);
+      return res.status(500).json({ error: 'Ошибка создания пропуска: не получен ID' });
+    }
+
+    const pass = await dbGet('SELECT * FROM passes WHERE id = $1', [newPassId]) as any;
+    if (!pass) {
+      console.error('Созданный пропуск не найден:', newPassId);
+      return res.status(500).json({ error: 'Ошибка создания пропуска: пропуск не найден после создания' });
+    }
+    
+    console.log('Постоянный пропуск успешно создан:', pass);
     res.status(201).json(pass);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Ошибка создания постоянного пропуска:', error);
-    res.status(500).json({ error: 'Ошибка сервера' });
+    res.status(500).json({ 
+      error: error.message || 'Ошибка сервера',
+      details: error.stack 
+    });
   }
 });
 

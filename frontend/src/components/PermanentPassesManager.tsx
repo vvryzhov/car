@@ -48,10 +48,13 @@ const PermanentPassesManager = ({ userId }: PermanentPassesManagerProps) => {
 
   const fetchPasses = async () => {
     try {
+      setLoading(true);
       const response = await api.get('/users/me/permanent-passes');
-      setPasses(response.data);
-    } catch (error) {
+      console.log('Загружены постоянные пропуска:', response.data);
+      setPasses(response.data || []);
+    } catch (error: any) {
       console.error('Ошибка загрузки постоянных пропусков:', error);
+      setError(error.response?.data?.error || 'Ошибка загрузки постоянных пропусков');
     } finally {
       setLoading(false);
     }
@@ -108,27 +111,37 @@ const PermanentPassesManager = ({ userId }: PermanentPassesManagerProps) => {
         finalBrand = aliasBrand;
       }
 
+      let response;
       if (editingPass) {
-        await api.put(`/users/me/permanent-passes/${editingPass.id}`, {
+        response = await api.put(`/users/me/permanent-passes/${editingPass.id}`, {
           vehicleType,
           vehicleBrand: finalBrand,
           vehicleNumber,
           comment: comment || null,
         });
+        console.log('Постоянный пропуск обновлен:', response.data);
       } else {
-        await api.post('/users/me/permanent-passes', {
+        response = await api.post('/users/me/permanent-passes', {
           vehicleType,
           vehicleBrand: finalBrand,
           vehicleNumber,
           comment: comment || null,
         });
+        console.log('Постоянный пропуск создан:', response.data);
       }
 
+      // Обновляем список
       await fetchPasses();
       setShowForm(false);
       setEditingPass(null);
+      setError(''); // Очищаем ошибки при успехе
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Ошибка сохранения постоянного пропуска');
+      console.error('Ошибка сохранения постоянного пропуска:', err);
+      const errorMessage = err.response?.data?.error || 
+                          err.response?.data?.errors?.[0]?.msg || 
+                          err.message || 
+                          'Ошибка сохранения постоянного пропуска';
+      setError(errorMessage);
     } finally {
       setSaving(false);
     }
