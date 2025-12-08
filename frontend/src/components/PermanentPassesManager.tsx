@@ -61,6 +61,7 @@ const PermanentPassesManager = ({ userId }: PermanentPassesManagerProps) => {
   };
 
   const handleCreate = () => {
+    console.log('➕ handleCreate вызван - открытие формы создания постоянного пропуска');
     setEditingPass(null);
     setVehicleType('легковой');
     setVehicleBrand('');
@@ -68,6 +69,7 @@ const PermanentPassesManager = ({ userId }: PermanentPassesManagerProps) => {
     setComment('');
     setError('');
     setShowForm(true);
+    console.log('✅ Форма должна быть открыта, showForm = true');
   };
 
   const handleEdit = (pass: PermanentPass) => {
@@ -81,6 +83,7 @@ const PermanentPassesManager = ({ userId }: PermanentPassesManagerProps) => {
   };
 
   const handleCancel = () => {
+    console.log('❌ handleCancel вызван - закрытие формы');
     setShowForm(false);
     setEditingPass(null);
     setError('');
