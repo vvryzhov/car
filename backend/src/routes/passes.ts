@@ -4,7 +4,7 @@ import { dbGet, dbRun, dbAll } from '../database';
 import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
 import { validateVehicleNumber } from '../utils/vehicleNumberValidator';
 import * as XLSX from 'xlsx';
-import { addClient, broadcastEvent } from '../services/sse';
+import { addClient, broadcastEvent, removeClient, getClientsCount } from '../services/sse';
 
 const router = express.Router();
 
@@ -21,27 +21,55 @@ router.get('/events', (req: express.Request, res: Response, next: express.NextFu
   req.headers.authorization = `Bearer ${token}`;
   next();
 }, authenticate, requireRole(['security', 'admin']), (req: AuthRequest, res: Response) => {
+  console.log(`🔌 Новое SSE подключение от пользователя ${req.user!.id} (${req.user!.role})`);
+  
   // Устанавливаем заголовки для SSE
   res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no'); // Отключаем буферизацию для nginx
+  res.setHeader('Access-Control-Allow-Origin', '*'); // Для CORS, если нужно
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+  // Отключаем таймауты
+  res.setTimeout(0);
 
   // Добавляем клиента в список подключенных
   addClient(res);
+  console.log(`✅ Клиент добавлен, всего подключено: ${getClientsCount()}`);
+
+  // Отправляем начальное сообщение
+  try {
+    res.write(': connected\n\n');
+  } catch (error) {
+    console.error('Ошибка отправки начального сообщения:', error);
+  }
 
   // Отправляем ping каждые 30 секунд для поддержания соединения
   const pingInterval = setInterval(() => {
     try {
+      if (!res.writable || res.destroyed) {
+        clearInterval(pingInterval);
+        return;
+      }
       res.write(': ping\n\n');
     } catch (error) {
+      console.error('Ошибка отправки ping:', error);
       clearInterval(pingInterval);
     }
   }, 30000);
 
   // Очистка при отключении
   req.on('close', () => {
+    console.log(`🔌 SSE соединение закрыто для пользователя ${req.user!.id}`);
     clearInterval(pingInterval);
+    removeClient(res);
+  });
+
+  req.on('error', (error: any) => {
+    console.error(`❌ Ошибка SSE соединения для пользователя ${req.user!.id}:`, error);
+    clearInterval(pingInterval);
+    removeClient(res);
   });
 });
 

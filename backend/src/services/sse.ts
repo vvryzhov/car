@@ -9,16 +9,32 @@ export const broadcastEvent = (event: string, data: any) => {
   const clientsCount = clients.size;
   
   console.log(`📢 Отправка SSE события "${event}" для ${clientsCount} клиентов`, data);
+  console.log(`📝 Формат сообщения:`, message.replace(/\n/g, '\\n'));
+  
+  let sentCount = 0;
+  let errorCount = 0;
   
   clients.forEach((client) => {
     try {
+      // Проверяем, что соединение еще активно
+      if (!client.writable || client.destroyed) {
+        console.warn('⚠️ Клиент не доступен для записи, удаляем из списка');
+        clients.delete(client);
+        errorCount++;
+        return;
+      }
+      
       client.write(message);
+      sentCount++;
     } catch (error) {
       // Если клиент отключился, удаляем его из списка
-      console.error('Ошибка отправки SSE события:', error);
+      console.error('❌ Ошибка отправки SSE события:', error);
       clients.delete(client);
+      errorCount++;
     }
   });
+  
+  console.log(`✅ Отправлено: ${sentCount}, Ошибок: ${errorCount}, Всего клиентов: ${clientsCount}`);
   
   if (clientsCount === 0) {
     console.warn('⚠️ Нет подключенных клиентов для отправки события');
