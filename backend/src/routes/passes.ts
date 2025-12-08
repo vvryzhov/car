@@ -120,8 +120,15 @@ router.get('/all', authenticate, requireRole(['security', 'admin']), async (req:
       }
     }
 
+    // Фильтр по дате: не применяем к личному транспорту при поиске по номеру
     if (date) {
-      query += ` AND p."entryDate" = $${paramIndex}`;
+      if (vehicleNumber) {
+        // При поиске по номеру показываем все, включая личный транспорт (независимо от даты)
+        query += ` AND (p."entryDate" = $${paramIndex} OR p."isPermanent" = true OR p.status = 'personal_vehicle')`;
+      } else {
+        // Обычный фильтр по дате (личный транспорт исключается выше)
+        query += ` AND p."entryDate" = $${paramIndex}`;
+      }
       params.push(date);
       paramIndex++;
     }
