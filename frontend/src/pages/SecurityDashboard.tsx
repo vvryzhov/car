@@ -114,54 +114,82 @@ const SecurityDashboard = () => {
     };
 
     // Обработка события новой заявки
-    eventSource.addEventListener('new-pass', (event: any) => {
-      console.log('📨 Получено событие: новая заявка', event);
+    const handleNewPass = (event: MessageEvent) => {
+      console.log('📨 [new-pass] Получено событие: новая заявка', {
+        type: event.type,
+        data: event.data,
+        origin: event.origin,
+        lastEventId: event.lastEventId
+      });
       if (event.data) {
         try {
           const data = JSON.parse(event.data);
-          console.log('Данные события:', data);
+          console.log('📦 [new-pass] Распарсенные данные события:', data);
         } catch (e) {
-          console.log('Данные события (не JSON):', event.data);
+          console.log('⚠️ [new-pass] Данные события (не JSON):', event.data);
         }
       }
       refreshLists();
-    });
+    };
+    eventSource.addEventListener('new-pass', handleNewPass);
 
     // Обработка события обновления заявки
-    eventSource.addEventListener('pass-updated', (event: any) => {
-      console.log('📨 Получено событие: заявка обновлена', event);
+    const handlePassUpdated = (event: MessageEvent) => {
+      console.log('📨 [pass-updated] Получено событие: заявка обновлена', {
+        type: event.type,
+        data: event.data,
+        origin: event.origin,
+        lastEventId: event.lastEventId
+      });
       if (event.data) {
         try {
           const data = JSON.parse(event.data);
-          console.log('Данные события:', data);
+          console.log('📦 [pass-updated] Распарсенные данные события:', data);
         } catch (e) {
-          console.log('Данные события (не JSON):', event.data);
+          console.log('⚠️ [pass-updated] Данные события (не JSON):', event.data);
         }
       }
       refreshLists();
-    });
+    };
+    eventSource.addEventListener('pass-updated', handlePassUpdated);
 
     // Обработка события удаления заявки
-    eventSource.addEventListener('pass-deleted', (event: any) => {
-      console.log('📨 Получено событие: заявка удалена', event);
+    const handlePassDeleted = (event: MessageEvent) => {
+      console.log('📨 [pass-deleted] Получено событие: заявка удалена', {
+        type: event.type,
+        data: event.data,
+        origin: event.origin,
+        lastEventId: event.lastEventId
+      });
       if (event.data) {
         try {
           const data = JSON.parse(event.data);
-          console.log('Данные события:', data);
+          console.log('📦 [pass-deleted] Распарсенные данные события:', data);
         } catch (e) {
-          console.log('Данные события (не JSON):', event.data);
+          console.log('⚠️ [pass-deleted] Данные события (не JSON):', event.data);
         }
       }
       refreshLists();
-    });
+    };
+    eventSource.addEventListener('pass-deleted', handlePassDeleted);
 
     // Обработка общих сообщений (на случай, если события приходят без типа)
     eventSource.onmessage = (event: MessageEvent) => {
-      console.log('📨 Получено общее сообщение SSE:', event);
+      console.log('📨 Получено общее сообщение SSE (onmessage):', {
+        type: event.type,
+        data: event.data,
+        origin: event.origin,
+        lastEventId: event.lastEventId,
+        target: event.target
+      });
       // Если пришло сообщение без типа события, обновляем списки
       if (event.data && event.data !== 'connected' && event.data !== 'ping') {
-        console.log('Обновление списков из-за общего сообщения');
+        console.log('🔄 Обновление списков из-за общего сообщения');
         refreshLists();
+      } else if (event.data === 'connected') {
+        console.log('✅ Получено подтверждение подключения');
+      } else if (event.data === 'ping') {
+        console.log('💓 Получен ping от сервера');
       }
     };
 

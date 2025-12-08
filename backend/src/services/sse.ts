@@ -9,32 +9,35 @@ export const broadcastEvent = (event: string, data: any) => {
   const clientsCount = clients.size;
   
   console.log(`📢 Отправка SSE события "${event}" для ${clientsCount} клиентов`, data);
-  console.log(`📝 Формат сообщения:`, message.replace(/\n/g, '\\n'));
+  console.log(`📝 Формат сообщения (raw):`, message);
+  console.log(`📝 Формат сообщения (escaped):`, message.replace(/\n/g, '\\n'));
   
   let sentCount = 0;
   let errorCount = 0;
   
-  clients.forEach((client) => {
+  clients.forEach((client, index) => {
     try {
       // Проверяем, что соединение еще активно
       if (!client.writable || client.destroyed) {
-        console.warn('⚠️ Клиент не доступен для записи, удаляем из списка');
+        console.warn(`⚠️ Клиент #${index} не доступен для записи, удаляем из списка`);
         clients.delete(client);
         errorCount++;
         return;
       }
       
-      client.write(message);
+      // Пытаемся отправить сообщение
+      const written = client.write(message);
+      console.log(`📤 Клиент #${index}: сообщение отправлено, written=${written}`);
       sentCount++;
-    } catch (error) {
+    } catch (error: any) {
       // Если клиент отключился, удаляем его из списка
-      console.error('❌ Ошибка отправки SSE события:', error);
+      console.error(`❌ Ошибка отправки SSE события клиенту #${index}:`, error);
       clients.delete(client);
       errorCount++;
     }
   });
   
-  console.log(`✅ Отправлено: ${sentCount}, Ошибок: ${errorCount}, Всего клиентов: ${clientsCount}`);
+  console.log(`✅ Итого: Отправлено=${sentCount}, Ошибок=${errorCount}, Всего клиентов=${clientsCount}`);
   
   if (clientsCount === 0) {
     console.warn('⚠️ Нет подключенных клиентов для отправки события');
