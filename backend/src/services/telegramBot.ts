@@ -1,4 +1,4 @@
-import TelegramBot from 'node-telegram-bot-api';
+import TelegramBot, { Message, CallbackQuery } from 'node-telegram-bot-api';
 import { dbGet, dbRun, dbAll } from '../database';
 import crypto from 'crypto';
 import { validateVehicleNumber } from '../utils/vehicleNumberValidator';
@@ -27,7 +27,7 @@ export const initTelegramBot = () => {
   bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
 
   // Команда /start
-  bot.onText(/\/start/, async (msg) => {
+  bot.onText(/\/start/, async (msg: Message) => {
     const chatId = msg.chat.id;
     const telegramId = msg.from?.id;
 
@@ -73,7 +73,7 @@ ${FRONTEND_URL}
   });
 
   // Команда /link
-  bot.onText(/\/link (.+)/, async (msg, match) => {
+  bot.onText(/\/link (.+)/, async (msg: Message, match: RegExpExecArray | null) => {
     const chatId = msg.chat.id;
     const telegramId = msg.from?.id;
     const token = match?.[1];
@@ -131,7 +131,7 @@ ${FRONTEND_URL}
   });
 
   // Команда /create
-  bot.onText(/\/create/, async (msg) => {
+  bot.onText(/\/create/, async (msg: Message) => {
     const chatId = msg.chat.id;
     const telegramId = msg.from?.id;
 
@@ -182,7 +182,7 @@ ${FRONTEND_URL}
   });
 
   // Обработка callback кнопок
-  bot.on('callback_query', async (query) => {
+  bot.on('callback_query', async (query: CallbackQuery) => {
     const chatId = query.message?.chat.id;
     const telegramId = query.from.id;
     const data = query.data;
@@ -225,7 +225,7 @@ ${FRONTEND_URL}
   });
 
   // Обработка текстовых сообщений для создания заявки
-  bot.on('message', async (msg) => {
+  bot.on('message', async (msg: Message) => {
     const chatId = msg.chat.id;
     const telegramId = msg.from?.id;
     const text = msg.text;
@@ -323,7 +323,7 @@ ${FRONTEND_URL}
   });
 
   // Команда /list
-  bot.onText(/\/list/, async (msg) => {
+  bot.onText(/\/list/, async (msg: Message) => {
     const chatId = msg.chat.id;
     const telegramId = msg.from?.id;
 
@@ -375,7 +375,7 @@ ${FRONTEND_URL}
   });
 
   // Команда /help
-  bot.onText(/\/help/, (msg) => {
+  bot.onText(/\/help/, (msg: Message) => {
     const chatId = msg.chat.id;
     const helpText = `
 📖 Справка по использованию бота
