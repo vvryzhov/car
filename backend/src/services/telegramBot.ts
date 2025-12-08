@@ -44,6 +44,12 @@ export const initTelegramBot = () => {
     console.error('❌ Критическая ошибка при инициализации Telegram бота:', error.message);
     console.error('Полная ошибка:', error);
     bot = null;
+    return null;
+  }
+
+  // Если бот не создан, выходим
+  if (!bot) {
+    return null;
   }
 
   // Команда /start
