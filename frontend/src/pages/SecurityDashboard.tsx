@@ -107,7 +107,7 @@ const SecurityDashboard = () => {
     }
 
     let eventSource: EventSource | null = null;
-    let pollInterval: NodeJS.Timeout | null = null;
+    let pollInterval: number | null = null;
     let sseWorking = false;
 
     // Функция для обновления списков
@@ -208,10 +208,11 @@ const SecurityDashboard = () => {
 
       // Обработка подключения
       eventSource.onopen = (event) => {
+        if (!eventSource) return;
         console.log('✅ SSE подключен успешно, readyState:', eventSource.readyState, event);
         sseWorking = true;
         // Если SSE работает, останавливаем polling
-        if (pollInterval) {
+        if (pollInterval !== null) {
           clearInterval(pollInterval);
           pollInterval = null;
           console.log('🛑 Polling остановлен, SSE работает');
@@ -220,14 +221,15 @@ const SecurityDashboard = () => {
 
       // Обработка ошибок
       eventSource.onerror = (error) => {
+        if (!eventSource) return;
         console.error('❌ Ошибка SSE соединения:', error);
         console.log('Состояние EventSource:', eventSource.readyState);
         console.log('URL:', eventSource.url);
         
         // Если SSE не работает, запускаем polling
-        if (!sseWorking && !pollInterval) {
+        if (!sseWorking && pollInterval === null) {
           console.log('🔄 SSE не работает, запускаем polling каждые 5 секунд...');
-          pollInterval = setInterval(() => {
+          pollInterval = window.setInterval(() => {
             refreshLists();
           }, 5000);
         }
@@ -248,15 +250,17 @@ const SecurityDashboard = () => {
       console.error('❌ Ошибка создания EventSource:', error);
       // Если не удалось создать EventSource, используем только polling
       console.log('🔄 Используем только polling...');
-      pollInterval = setInterval(() => {
+      pollInterval = window.setInterval(() => {
         refreshLists();
       }, 5000);
     }
 
     // Запускаем polling сразу как fallback (будет остановлен если SSE заработает)
-    pollInterval = pollInterval || setInterval(() => {
-      refreshLists();
-    }, 5000);
+    if (pollInterval === null) {
+      pollInterval = window.setInterval(() => {
+        refreshLists();
+      }, 5000);
+    }
 
     // Очистка при размонтировании или при открытии модального окна
     return () => {
@@ -264,7 +268,7 @@ const SecurityDashboard = () => {
       if (eventSource) {
         eventSource.close();
       }
-      if (pollInterval) {
+      if (pollInterval !== null) {
         clearInterval(pollInterval);
       }
     };
