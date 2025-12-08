@@ -48,7 +48,7 @@ router.get('/events', (req: express.Request, res: Response, next: express.NextFu
 // Получить все заявки (для охраны и админа)
 router.get('/all', authenticate, requireRole(['security', 'admin']), async (req: AuthRequest, res: Response) => {
   try {
-    const { date, vehicleType, includeDeleted, userId, plotNumber, status, vehicleNumber } = req.query;
+    const { date, vehicleType, includeDeleted, userId, plotNumber, status, vehicleNumber, isPermanent } = req.query;
     let query = `
       SELECT p.*, u."fullName", u.phone, p."plotNumber"
       FROM passes p
@@ -62,10 +62,19 @@ router.get('/all', authenticate, requireRole(['security', 'admin']), async (req:
       query += ` AND p."deletedAt" IS NULL`;
     }
 
-    // Если есть поиск по номеру авто, показываем и постоянные пропуска
-    // Иначе исключаем постоянные пропуска из обычного списка
-    if (!vehicleNumber) {
-      query += ` AND (p."isPermanent" IS NULL OR p."isPermanent" = false)`;
+    // Фильтр по личному транспорту (для админа)
+    if (isPermanent !== undefined) {
+      if (isPermanent === 'true') {
+        query += ` AND (p."isPermanent" = true OR p.status = 'personal_vehicle')`;
+      } else if (isPermanent === 'false') {
+        query += ` AND (p."isPermanent" IS NULL OR p."isPermanent" = false) AND p.status != 'personal_vehicle'`;
+      }
+    } else {
+      // Если нет явного фильтра и нет поиска по номеру авто, исключаем постоянные пропуска из обычного списка
+      // (для обратной совместимости с охраной)
+      if (!vehicleNumber && req.user!.role !== 'admin') {
+        query += ` AND (p."isPermanent" IS NULL OR p."isPermanent" = false)`;
+      }
     }
 
     if (date) {
@@ -345,7 +354,7 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 // Экспорт заявок в Excel
 router.get('/export/excel', authenticate, requireRole(['admin']), async (req: AuthRequest, res: Response) => {
   try {
-    const { date, vehicleType, userId, plotNumber } = req.query;
+    const { date, vehicleType, userId, plotNumber, isPermanent, vehicleNumber } = req.query;
     
     let query = `
       SELECT 
@@ -364,6 +373,7 @@ router.get('/export/excel', authenticate, requireRole(['admin']), async (req: Au
           WHEN p.status = 'pending' THEN 'Ожидает'
           WHEN p.status = 'activated' THEN 'Заехал'
           WHEN p.status = 'rejected' THEN 'Отклонено'
+          WHEN p.status = 'personal_vehicle' THEN 'Личный транспорт'
           ELSE p.status
         END as "Статус",
         p."createdAt" as "Дата создания"
@@ -374,6 +384,15 @@ router.get('/export/excel', authenticate, requireRole(['admin']), async (req: Au
     
     const params: any[] = [];
     let paramIndex = 1;
+
+    // Фильтр по личному транспорту
+    if (isPermanent !== undefined) {
+      if (isPermanent === 'true') {
+        query += ` AND (p."isPermanent" = true OR p.status = 'personal_vehicle')`;
+      } else if (isPermanent === 'false') {
+        query += ` AND (p."isPermanent" IS NULL OR p."isPermanent" = false) AND p.status != 'personal_vehicle'`;
+      }
+    }
 
     if (date) {
       query += ` AND p."entryDate" = $${paramIndex}`;
@@ -399,7 +418,13 @@ router.get('/export/excel', authenticate, requireRole(['admin']), async (req: Au
       paramIndex++;
     }
 
-    query += ' ORDER BY p."entryDate" DESC, p."createdAt" DESC';
+    if (vehicleNumber) {
+      query += ` AND p."vehicleNumber" ILIKE $${paramIndex}`;
+      params.push(`%${vehicleNumber}%`);
+      paramIndex++;
+    }
+
+    query += ' ORDER BY p."isPermanent" DESC, p."entryDate" DESC, p."createdAt" DESC';
 
     const passes = await dbAll(query, params) as any[];
 

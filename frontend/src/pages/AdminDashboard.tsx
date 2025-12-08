@@ -53,6 +53,8 @@ const AdminDashboard = () => {
     vehicleType: '',
     userId: '',
     plotNumber: '',
+    isPermanent: '',
+    vehicleNumber: '',
   });
 
   useEffect(() => {
@@ -103,6 +105,8 @@ const AdminDashboard = () => {
       if (passFilters.vehicleType) params.append('vehicleType', passFilters.vehicleType);
       if (passFilters.userId) params.append('userId', passFilters.userId);
       if (passFilters.plotNumber) params.append('plotNumber', passFilters.plotNumber);
+      if (passFilters.isPermanent) params.append('isPermanent', passFilters.isPermanent);
+      if (passFilters.vehicleNumber) params.append('vehicleNumber', passFilters.vehicleNumber);
 
       const response = await api.get(`/passes/all?${params.toString()}`);
       setPasses(response.data);
@@ -123,7 +127,7 @@ const AdminDashboard = () => {
   };
 
   const handleClearPassFilters = () => {
-    setPassFilters({ date: '', vehicleType: '', userId: '', plotNumber: '' });
+    setPassFilters({ date: '', vehicleType: '', userId: '', plotNumber: '', isPermanent: '', vehicleNumber: '' });
     fetchPasses();
   };
 
@@ -134,6 +138,8 @@ const AdminDashboard = () => {
       if (passFilters.vehicleType) params.append('vehicleType', passFilters.vehicleType);
       if (passFilters.userId) params.append('userId', passFilters.userId);
       if (passFilters.plotNumber) params.append('plotNumber', passFilters.plotNumber);
+      if (passFilters.isPermanent) params.append('isPermanent', passFilters.isPermanent);
+      if (passFilters.vehicleNumber) params.append('vehicleNumber', passFilters.vehicleNumber);
 
       const response = await api.get(`/passes/export/excel?${params.toString()}`, {
         responseType: 'blob',
@@ -617,6 +623,28 @@ const AdminDashboard = () => {
                       <option value="грузовой">Грузовой</option>
                       <option value="легковой">Легковой</option>
                     </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Личный транспорт</label>
+                    <select
+                      value={passFilters.isPermanent}
+                      onChange={(e) => handlePassFilterChange('isPermanent', e.target.value)}
+                      style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                    >
+                      <option value="">Все</option>
+                      <option value="true">Только личный транспорт</option>
+                      <option value="false">Только разовые заявки</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Номер авто</label>
+                    <input
+                      type="text"
+                      value={passFilters.vehicleNumber}
+                      onChange={(e) => handlePassFilterChange('vehicleNumber', e.target.value.toUpperCase())}
+                      placeholder="Поиск по номеру"
+                      style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', textTransform: 'uppercase' }}
+                    />
                   </div>
                   <div>
                     <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Пользователь</label>
