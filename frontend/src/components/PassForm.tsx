@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { carBrands } from '../data/carBrands';
 import { getBrandByAlias, searchBrands } from '../data/carBrandAliases';
 import { validateVehicleNumber } from '../utils/vehicleNumberValidator';
+import DateInput from './DateInput';
 
 interface Plot {
   id: number;
@@ -285,13 +286,15 @@ const PassForm = ({ pass, user, onCancel, onSave }: PassFormProps) => {
 
           <div className="form-group">
             <label htmlFor="entryDate">Дата въезда</label>
-            <input
-              type="date"
+            <DateInput
               id="entryDate"
               value={entryDate}
-              onChange={(e) => setEntryDate(e.target.value)}
+              onChange={(value) => setEntryDate(value)}
               required
             />
+            <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+              Формат: дд-мм-гггг
+            </small>
           </div>
 
           <div className="form-group">

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { carBrands } from '../data/carBrands';
 import { validateVehicleNumber } from '../utils/vehicleNumberValidator';
+import DateInput from './DateInput';
 
 interface Pass {
   id: number;
@@ -260,13 +261,15 @@ const SecurityPassModal = ({ pass, onClose, onSave }: SecurityPassModalProps) =>
 
           <div className="form-group">
             <label htmlFor="entryDate">Дата въезда</label>
-            <input
-              type="date"
+            <DateInput
               id="entryDate"
               value={entryDate}
-              onChange={(e) => setEntryDate(e.target.value)}
+              onChange={(value) => setEntryDate(value)}
               required
             />
+            <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+              Формат: дд-мм-гггг
+            </small>
           </div>
 
           <div className="form-group">

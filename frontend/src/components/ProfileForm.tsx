@@ -18,13 +18,13 @@ interface User {
   telegramLinked?: boolean;
 }
 
-interface ProfileModalProps {
+interface ProfileFormProps {
   user: User;
-  onClose: () => void;
+  onCancel: () => void;
   onSave: (userData: User) => void;
 }
 
-const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
+const ProfileForm = ({ user, onCancel, onSave }: ProfileFormProps) => {
   const [email, setEmail] = useState(user.email || '');
   const [phone, setPhone] = useState(formatPhone(user.phone || ''));
   const [plots, setPlots] = useState<Plot[]>(user.plots || []);
@@ -161,7 +161,6 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
       try {
         await navigator.clipboard.writeText(telegramLinkToken);
         setError('');
-        // Можно показать временное сообщение об успехе
       } catch (e) {
         setError('Не удалось скопировать код');
       }
@@ -217,11 +216,13 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
+    <div className="profile-form-container">
+      <div className="card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h2>Редактировать профиль</h2>
-          <button className="close-btn" onClick={onClose}>×</button>
+          <button className="btn btn-secondary" onClick={onCancel}>
+            Отмена
+          </button>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -548,8 +549,8 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
 
           {error && <div className="error">{error}</div>}
 
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
-            <button type="button" className="btn btn-secondary" onClick={onClose}>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'space-between', marginTop: '20px' }}>
+            <button type="button" className="btn btn-secondary" onClick={onCancel}>
               Отмена
             </button>
             <button type="submit" className="btn btn-primary" disabled={loading}>
@@ -562,4 +563,5 @@ const ProfileModal = ({ user, onClose, onSave }: ProfileModalProps) => {
   );
 };
 
-export default ProfileModal;
+export default ProfileForm;
+

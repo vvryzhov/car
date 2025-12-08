@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import PassForm from '../components/PassForm';
-import ProfileModal from '../components/ProfileModal';
+import ProfileForm from '../components/ProfileForm';
 import Footer from '../components/Footer';
 import { format } from 'date-fns';
 
@@ -23,7 +23,7 @@ const Dashboard = () => {
   const [passes, setPasses] = useState<Pass[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPassModal, setShowPassModal] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showProfileForm, setShowProfileForm] = useState(false);
   const [editingPass, setEditingPass] = useState<Pass | null>(null);
 
   useEffect(() => {
@@ -73,7 +73,7 @@ const Dashboard = () => {
 
   const handleProfileSaved = (userData: any) => {
     updateUser(userData);
-    setShowProfileModal(false);
+    setShowProfileForm(false);
   };
 
   return (
@@ -91,7 +91,7 @@ const Dashboard = () => {
                 </span>
               )}
             </span>
-            <button className="btn btn-secondary" onClick={() => setShowProfileModal(true)}>
+            <button className="btn btn-secondary" onClick={() => setShowProfileForm(true)}>
               Профиль
             </button>
             <button className="btn btn-secondary" onClick={() => window.location.href = '/help'} style={{ marginRight: '10px' }}>
@@ -105,7 +105,13 @@ const Dashboard = () => {
       </div>
 
       <div className="container">
-        {showPassModal ? (
+        {showProfileForm ? (
+          <ProfileForm
+            user={user!}
+            onCancel={() => setShowProfileForm(false)}
+            onSave={handleProfileSaved}
+          />
+        ) : showPassModal ? (
           <PassForm
             pass={editingPass}
             user={user!}
@@ -201,14 +207,6 @@ const Dashboard = () => {
           </div>
         )}
       </div>
-
-      {showProfileModal && (
-        <ProfileModal
-          user={user!}
-          onClose={() => setShowProfileModal(false)}
-          onSave={handleProfileSaved}
-        />
-      )}
       <Footer />
     </div>
   );
