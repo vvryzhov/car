@@ -298,25 +298,53 @@ https://пропуск.аносинопарк.рф
           state.action = 'waiting_entry_date';
           userStates.set(telegramId, state);
 
-          const today = new Date().toISOString().split('T')[0];
-          bot?.sendMessage(chatId, `✅ Номер: ${state.data.vehicleNumber}\n\n📅 Введите дату въезда в формате ГГГГ-ММ-ДД (например: ${today}):`);
+          // Форматируем сегодняшнюю дату в дд-мм-гггг
+          const today = new Date();
+          const day = String(today.getDate()).padStart(2, '0');
+          const month = String(today.getMonth() + 1).padStart(2, '0');
+          const year = today.getFullYear();
+          const todayFormatted = `${day}-${month}-${year}`;
+          
+          bot?.sendMessage(chatId, `✅ Номер: ${state.data.vehicleNumber}\n\n📅 Введите дату въезда в формате дд-мм-гггг (например: ${todayFormatted}):`);
           break;
         }
 
         case 'waiting_entry_date': {
-          const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+          // Проверяем формат дд-мм-гггг
+          const dateRegex = /^\d{2}-\d{2}-\d{4}$/;
           if (!dateRegex.test(text.trim())) {
-            bot?.sendMessage(chatId, '❌ Неверный формат даты. Используйте ГГГГ-ММ-ДД (например: 2024-12-25)');
+            bot?.sendMessage(chatId, '❌ Неверный формат даты. Используйте дд-мм-гггг (например: 25-12-2024)');
             return;
           }
 
-          const entryDate = new Date(text.trim());
-          if (isNaN(entryDate.getTime())) {
-            bot?.sendMessage(chatId, '❌ Неверная дата. Попробуйте еще раз:');
+          // Парсим дату из дд-мм-гггг в ГГГГ-ММ-ДД для сохранения
+          const parts = text.trim().split('-');
+          if (parts.length !== 3) {
+            bot?.sendMessage(chatId, '❌ Неверный формат даты. Используйте дд-мм-гггг (например: 25-12-2024)');
             return;
           }
 
-          state.data.entryDate = text.trim();
+          const day = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10);
+          const year = parseInt(parts[2], 10);
+
+          // Проверяем валидность даты
+          if (isNaN(day) || isNaN(month) || isNaN(year) || day < 1 || day > 31 || month < 1 || month > 12) {
+            bot?.sendMessage(chatId, '❌ Неверная дата. Проверьте правильность ввода (дд-мм-гггг)');
+            return;
+          }
+
+          const entryDate = new Date(year, month - 1, day);
+          if (isNaN(entryDate.getTime()) || 
+              entryDate.getDate() !== day || 
+              entryDate.getMonth() + 1 !== month) {
+            bot?.sendMessage(chatId, '❌ Неверная дата. Попробуйте еще раз (дд-мм-гггг):');
+            return;
+          }
+
+          // Конвертируем в ГГГГ-ММ-ДД для сохранения в БД
+          const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          state.data.entryDate = formattedDate;
           state.action = 'waiting_plot';
           userStates.set(telegramId, state);
 
