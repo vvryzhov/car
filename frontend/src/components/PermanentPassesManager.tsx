@@ -88,10 +88,14 @@ const PermanentPassesManager = ({ userId }: PermanentPassesManagerProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('🚀 handleSubmit вызван');
     setError('');
     setSaving(true);
 
+    console.log('📋 Данные формы:', { vehicleType, vehicleBrand, vehicleNumber, comment });
+
     if (!vehicleBrand || vehicleBrand.trim() === '') {
+      console.error('❌ Ошибка: марка авто пустая');
       setError('Марка авто обязательна');
       setSaving(false);
       return;
@@ -99,6 +103,7 @@ const PermanentPassesManager = ({ userId }: PermanentPassesManagerProps) => {
 
     const numberValidation = validateVehicleNumber(vehicleNumber);
     if (!numberValidation.valid) {
+      console.error('❌ Ошибка валидации номера:', numberValidation.error);
       setError(numberValidation.error || 'Некорректный формат номера');
       setSaving(false);
       return;
@@ -111,37 +116,47 @@ const PermanentPassesManager = ({ userId }: PermanentPassesManagerProps) => {
         finalBrand = aliasBrand;
       }
 
+      const requestData = {
+        vehicleType,
+        vehicleBrand: finalBrand,
+        vehicleNumber,
+        comment: comment || null,
+      };
+
+      console.log('📤 Отправка запроса:', editingPass ? 'PUT' : 'POST', requestData);
+
       let response;
       if (editingPass) {
-        response = await api.put(`/users/me/permanent-passes/${editingPass.id}`, {
-          vehicleType,
-          vehicleBrand: finalBrand,
-          vehicleNumber,
-          comment: comment || null,
-        });
-        console.log('Постоянный пропуск обновлен:', response.data);
+        console.log('✏️ Обновление постоянного пропуска:', editingPass.id);
+        response = await api.put(`/users/me/permanent-passes/${editingPass.id}`, requestData);
+        console.log('✅ Постоянный пропуск обновлен:', response.data);
       } else {
-        response = await api.post('/users/me/permanent-passes', {
-          vehicleType,
-          vehicleBrand: finalBrand,
-          vehicleNumber,
-          comment: comment || null,
-        });
-        console.log('Постоянный пропуск создан:', response.data);
+        console.log('➕ Создание нового постоянного пропуска');
+        response = await api.post('/users/me/permanent-passes', requestData);
+        console.log('✅ Постоянный пропуск создан:', response.data);
       }
 
       // Обновляем список
+      console.log('🔄 Обновление списка пропусков...');
       await fetchPasses();
       setShowForm(false);
       setEditingPass(null);
       setError(''); // Очищаем ошибки при успехе
+      console.log('✅ Успешно завершено');
     } catch (err: any) {
-      console.error('Ошибка сохранения постоянного пропуска:', err);
+      console.error('❌ Ошибка сохранения постоянного пропуска:', err);
+      console.error('   Детали ошибки:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+      });
       const errorMessage = err.response?.data?.error || 
                           err.response?.data?.errors?.[0]?.msg || 
                           err.message || 
                           'Ошибка сохранения постоянного пропуска';
       setError(errorMessage);
+      alert(`Ошибка: ${errorMessage}`);
     } finally {
       setSaving(false);
     }
