@@ -1355,12 +1355,19 @@ router.post('/me/permanent-passes', authenticate, requireRole(['user', 'foreman'
   body('vehicleBrand').notEmpty().withMessage('Марка авто обязательна'),
   body('vehicleNumber').notEmpty().withMessage('Номер авто обязателен'),
 ], async (req: AuthRequest, res: Response) => {
+  console.log('📝 POST /api/users/me/permanent-passes - запрос на создание постоянного пропуска');
+  console.log('   Пользователь ID:', req.user!.id);
+  console.log('   Роль:', req.user!.role);
+  console.log('   Тело запроса:', JSON.stringify(req.body, null, 2));
+  
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.error('❌ Ошибки валидации:', errors.array());
     return res.status(400).json({ errors: errors.array() });
   }
 
   const { vehicleType, vehicleBrand, vehicleNumber, comment } = req.body;
+  console.log('   Данные после валидации:', { vehicleType, vehicleBrand, vehicleNumber, comment });
 
   // Валидация номера автомобиля
   const { validateVehicleNumber } = await import('../utils/vehicleNumberValidator');
