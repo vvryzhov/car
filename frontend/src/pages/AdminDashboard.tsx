@@ -57,10 +57,27 @@ const AdminDashboard = () => {
     isPermanent: '',
     vehicleNumber: '',
   });
+  const [userStats, setUserStats] = useState({
+    total: 0,
+    admin: 0,
+    security: 0,
+    foreman: 0,
+    user: 0,
+  });
 
   useEffect(() => {
     fetchUsers();
+    fetchUserStats();
   }, []);
+
+  const fetchUserStats = async () => {
+    try {
+      const response = await api.get('/users/stats');
+      setUserStats(response.data);
+    } catch (error) {
+      console.error('Ошибка загрузки статистики пользователей:', error);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -195,6 +212,7 @@ const AdminDashboard = () => {
     setEditingUser(null);
     setSelectedUsers([]);
     fetchUsers();
+    fetchUserStats();
   };
 
   const handleDeleteUser = async (userId: number) => {
@@ -205,6 +223,7 @@ const AdminDashboard = () => {
     try {
       await api.delete(`/users/${userId}`);
       fetchUsers();
+      fetchUserStats();
       setSelectedUsers(selectedUsers.filter(id => id !== userId));
     } catch (error: any) {
       alert(error.response?.data?.error || 'Ошибка удаления пользователя');
@@ -225,6 +244,7 @@ const AdminDashboard = () => {
       await api.post('/users/bulk-delete', { userIds: selectedUsers });
       setSelectedUsers([]);
       fetchUsers();
+      fetchUserStats();
     } catch (error: any) {
       alert(error.response?.data?.error || 'Ошибка массового удаления');
     }
@@ -249,6 +269,7 @@ const AdminDashboard = () => {
       setUploadResult(response.data);
       setCsvFile(null);
       fetchUsers();
+      fetchUserStats();
     } catch (error: any) {
       alert(error.response?.data?.error || 'Ошибка загрузки CSV');
     }
@@ -375,6 +396,50 @@ const AdminDashboard = () => {
 
           {activeTab === 'users' && (
             <>
+          {/* Статистика пользователей */}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+            gap: '15px', 
+            marginBottom: '20px' 
+          }}>
+            <div style={{ 
+              padding: '15px', 
+              backgroundColor: '#e3f2fd', 
+              borderRadius: '6px', 
+              border: '1px solid #90caf9' 
+            }}>
+              <div style={{ fontSize: '14px', color: '#666', marginBottom: '5px' }}>Всего пользователей</div>
+              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1976d2' }}>{userStats.total}</div>
+            </div>
+            <div style={{ 
+              padding: '15px', 
+              backgroundColor: '#fff3e0', 
+              borderRadius: '6px', 
+              border: '1px solid #ffb74d' 
+            }}>
+              <div style={{ fontSize: '14px', color: '#666', marginBottom: '5px' }}>Прорабов</div>
+              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#f57c00' }}>{userStats.foreman}</div>
+            </div>
+            <div style={{ 
+              padding: '15px', 
+              backgroundColor: '#f3e5f5', 
+              borderRadius: '6px', 
+              border: '1px solid #ba68c8' 
+            }}>
+              <div style={{ fontSize: '14px', color: '#666', marginBottom: '5px' }}>Охранников</div>
+              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#7b1fa2' }}>{userStats.security}</div>
+            </div>
+            <div style={{ 
+              padding: '15px', 
+              backgroundColor: '#e8f5e9', 
+              borderRadius: '6px', 
+              border: '1px solid #81c784' 
+            }}>
+              <div style={{ fontSize: '14px', color: '#666', marginBottom: '5px' }}>Администраторов</div>
+              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#388e3c' }}>{userStats.admin}</div>
+            </div>
+          </div>
 
           {showBulkUpload && (
             <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>

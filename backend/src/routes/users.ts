@@ -86,6 +86,47 @@ router.get('/', authenticate, requireRole(['admin']), async (req: AuthRequest, r
   }
 });
 
+// Получить статистику пользователей по ролям (только для админа)
+router.get('/stats', authenticate, requireRole(['admin']), async (req: AuthRequest, res: Response) => {
+  try {
+    const stats = await dbAll(`
+      SELECT 
+        role,
+        COUNT(*) as count
+      FROM users
+      WHERE "deactivatedAt" IS NULL
+      GROUP BY role
+    `) as Array<{ role: string; count: number }>;
+
+    const total = await dbGet(`
+      SELECT COUNT(*) as count
+      FROM users
+      WHERE "deactivatedAt" IS NULL
+    `) as { count: number | string };
+
+    const result = {
+      total: typeof total?.count === 'number' ? total.count : parseInt(String(total?.count || 0), 10),
+      admin: 0,
+      security: 0,
+      foreman: 0,
+      user: 0,
+    };
+
+    stats.forEach((stat) => {
+      if (stat.role in result) {
+        result[stat.role as keyof typeof result] = typeof stat.count === 'number' 
+          ? stat.count 
+          : parseInt(String(stat.count || 0), 10);
+      }
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Ошибка получения статистики пользователей:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 // Получить текущего пользователя
 router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
   try {
