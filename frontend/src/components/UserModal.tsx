@@ -54,7 +54,11 @@ const UserModal = ({ user, onClose, onSave }: UserModalProps) => {
       setFullName(user.fullName);
       setPhone(formatPhone(user.phone || ''));
       setRole(user.role);
-      setDeactivationDate(user.deactivationDate || '');
+      // Форматируем дату для input type="date" (нужен формат YYYY-MM-DD)
+      const dateValue = user.deactivationDate 
+        ? (user.deactivationDate.split('T')[0] || user.deactivationDate) 
+        : '';
+      setDeactivationDate(dateValue);
       setDeactivate(!!user.deactivatedAt);
       // Загружаем участки: для ролей user и foreman всегда, для других - только если админ редактирует
       if (user.role === 'user' || user.role === 'foreman' || (isAdmin && user.role !== 'security' && user.role !== 'admin')) {

@@ -446,19 +446,20 @@ router.put(
         paramIndex++;
       }
 
-      // Всегда обновляем deactivationDate: если роль прораб - устанавливаем значение, иначе null
-      if (role === 'foreman' && deactivationDate !== undefined) {
-        updateFields.push(`"deactivationDate" = $${paramIndex}`);
-        updateParams.push(deactivationDate || null);
-        paramIndex++;
-      } else if (role !== undefined && role !== 'foreman') {
-        // Если меняем роль на не-прораб, очищаем deactivationDate
+      // Обработка deactivationDate
+      // Если роль меняется на не-прораб, очищаем deactivationDate
+      if (role !== undefined && role !== 'foreman' && user.role === 'foreman') {
+        // Меняем роль с прораба на другую - очищаем deactivationDate
         updateFields.push(`"deactivationDate" = NULL`);
       } else if (deactivationDate !== undefined) {
-        // Если явно передано значение (включая null)
-        updateFields.push(`"deactivationDate" = $${paramIndex}`);
-        updateParams.push(deactivationDate || null);
-        paramIndex++;
+        // Если deactivationDate явно передано (включая null)
+        // Обновляем для прорабов (текущая роль или новая роль - прораб)
+        const isForeman = role === 'foreman' || (role === undefined && user.role === 'foreman');
+        if (isForeman) {
+          updateFields.push(`"deactivationDate" = $${paramIndex}`);
+          updateParams.push(deactivationDate || null);
+          paramIndex++;
+        }
       }
 
       if (deactivate !== undefined) {
