@@ -16,6 +16,15 @@ const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
 app.use(cors());
 app.use(express.json());
 
+// Логирование всех запросов для отладки
+app.use((req: any, res: any, next: any) => {
+  if (req.path === '/api/users/me' && req.method === 'PUT') {
+    console.log('🌐 ВСЕ ЗАПРОСЫ: PUT /api/users/me получен на уровне приложения');
+    console.log('🌐 Тело запроса:', JSON.stringify(req.body));
+  }
+  next();
+});
+
 // Роуты
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);

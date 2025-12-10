@@ -14,6 +14,15 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 const router = express.Router();
 
+// Логирование всех запросов к /me для отладки
+router.use('/me', (req: any, res: any, next: any) => {
+  if (req.method === 'PUT') {
+    console.log('🔵 ROUTER USE: PUT /me запрос получен на уровне роутера');
+    console.log('🔵 Тело запроса:', JSON.stringify(req.body));
+  }
+  next();
+});
+
 // Получить всех пользователей (только для админа)
 router.get('/', authenticate, requireRole(['admin']), async (req: AuthRequest, res: Response) => {
   try {
