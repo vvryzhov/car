@@ -739,25 +739,24 @@ router.post(
 router.put(
   '/me',
   authenticate,
-  (req: AuthRequest, res: Response, next: NextFunction) => {
+  async (req: AuthRequest, res: Response) => {
     console.log('📝 PUT /users/me - запрос получен, пользователь:', req.user!.id);
     console.log('📝 Тело запроса:', JSON.stringify(req.body));
-    console.log('📝 Headers:', JSON.stringify(req.headers));
-    next();
-  },
-  [
-    body('email').optional({ nullable: true, checkFalsy: true }).isEmail().withMessage('Некорректный email'),
-    // Убираем валидацию phone, проверяем вручную
-  ],
-  async (req: AuthRequest, res: Response) => {
-    console.log('🔍 PUT /users/me - обработчик вызван');
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      console.log('❌ Ошибки валидации PUT /users/me:', errors.array());
-      return res.status(400).json({ errors: errors.array() });
-    }
-
+    console.log('📝 Headers authorization:', req.headers.authorization ? 'present' : 'missing');
+    
+    // Валидация вручную, без express-validator для этого endpoint
     const { email, phone } = req.body;
+    
+    // Проверяем email только если он передан и не пустой
+    if (email !== undefined && email !== null && email !== '') {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        console.log('❌ Ошибка валидации email:', email);
+        return res.status(400).json({ error: 'Некорректный email' });
+      }
+    }
+    
+    console.log('🔍 PUT /users/me - валидация пройдена, обработчик вызван');
     
     console.log('📝 PUT /users/me - запрос от пользователя:', req.user!.id);
     console.log('📝 Данные запроса - email:', email, 'phone:', phone);
