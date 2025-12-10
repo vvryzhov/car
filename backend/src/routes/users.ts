@@ -14,15 +14,6 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 const router = express.Router();
 
-// Логирование всех запросов к /me для отладки
-router.use('/me', (req: any, res: any, next: any) => {
-  if (req.method === 'PUT') {
-    console.log('🔵 ROUTER USE: PUT /me запрос получен на уровне роутера');
-    console.log('🔵 Тело запроса:', JSON.stringify(req.body));
-  }
-  next();
-});
-
 // Получить всех пользователей (только для админа)
 router.get('/', authenticate, requireRole(['admin']), async (req: AuthRequest, res: Response) => {
   try {
@@ -135,6 +126,109 @@ router.get('/stats', authenticate, requireRole(['admin']), async (req: AuthReque
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
+
+// Обновить профиль пользователя (только свои данные, без ФИО, адреса и участка)
+// ВАЖНО: Этот маршрут должен быть ПЕРЕД router.get('/me', ...), чтобы Express правильно его находил
+router.put(
+  '/me',
+  (req: any, res: Response, next: NextFunction) => {
+    console.log('🚀 PUT /users/me - маршрут зарегистрирован, запрос получен ДО authenticate');
+    console.log('🚀 Метод:', req.method, 'URL:', req.url, 'Path:', req.path);
+    next();
+  },
+  authenticate,
+  async (req: AuthRequest, res: Response) => {
+    console.log('📝 PUT /users/me - запрос получен, пользователь:', req.user!.id);
+    console.log('📝 Тело запроса:', JSON.stringify(req.body));
+    console.log('📝 Headers authorization:', req.headers.authorization ? 'present' : 'missing');
+    
+    // Валидация вручную, без express-validator для этого endpoint
+    const { email, phone } = req.body;
+    
+    // Проверяем email только если он передан и не пустой
+    if (email !== undefined && email !== null && email !== '') {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        console.log('❌ Ошибка валидации email:', email);
+        return res.status(400).json({ error: 'Некорректный email' });
+      }
+    }
+    
+    console.log('🔍 PUT /users/me - валидация пройдена, обработчик вызван');
+    
+    console.log('📝 PUT /users/me - запрос от пользователя:', req.user!.id);
+    console.log('📝 Данные запроса - email:', email, 'phone:', phone);
+    console.log('📝 Типы данных - email type:', typeof email, 'phone type:', typeof phone);
+    console.log('📝 Значения - email === undefined:', email === undefined, 'phone === undefined:', phone === undefined);
+    console.log('📝 Значения - email === null:', email === null, 'phone === null:', phone === null);
+    console.log('📝 Значения - email === "":', email === '', 'phone === "":', phone === '');
+
+    try {
+      // Получаем текущего пользователя для проверки роли
+      const currentUser = await dbGet('SELECT id, role FROM users WHERE id = $1', [req.user!.id]) as any;
+      console.log('👤 Текущий пользователь:', currentUser);
+      
+      // Проверяем телефон вручную
+      if (phone !== undefined && phone !== null && phone !== '' && phone.trim() === '') {
+        console.log('❌ Телефон не может быть пустой строкой');
+        return res.status(400).json({ error: 'Телефон не может быть пустым' });
+      }
+      
+      // Проверяем, что передан хотя бы один параметр для обновления
+      const hasEmail = email !== undefined && email !== null && email !== '';
+      const hasPhone = phone !== undefined && phone !== null && phone !== '' && phone.trim() !== '';
+      
+      console.log('✅ Проверка параметров - hasEmail:', hasEmail, 'hasPhone:', hasPhone);
+      
+      if (!hasEmail && !hasPhone) {
+        console.log('❌ Нет параметров для обновления');
+        return res.status(400).json({ error: 'Необходимо указать хотя бы одно поле для обновления' });
+      }
+      
+      // Для пользователей и прорабов запрещаем прямую смену email
+      // Им нужно использовать механизм подтверждения через код
+      if (hasEmail && (currentUser.role === 'user' || currentUser.role === 'foreman')) {
+        console.log('❌ Попытка смены email для user/foreman - доступ запрещен');
+        return res.status(403).json({ 
+          error: 'Для смены email необходимо подтверждение через код. Используйте /api/users/me/request-email-change' 
+        });
+      }
+
+      // Для админа и security можно менять email напрямую
+      if (hasEmail && currentUser.role !== 'user' && currentUser.role !== 'foreman') {
+        const existingUser = await dbGet('SELECT id FROM users WHERE email = $1 AND id != $2', [email, req.user!.id]);
+        if (existingUser) {
+          return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
+        }
+        await dbRun(
+          'UPDATE users SET email = $1 WHERE id = $2',
+          [email, req.user!.id]
+        );
+      }
+
+      // Обновляем телефон только если он передан и не пустой
+      if (hasPhone) {
+        console.log('📞 Обновление телефона для пользователя', req.user!.id, 'на', phone);
+        await dbRun(
+          'UPDATE users SET phone = $1 WHERE id = $2',
+          [phone, req.user!.id]
+        );
+        console.log('✅ Телефон успешно обновлен');
+      }
+
+      const user = await dbGet(
+        'SELECT id, email, "fullName", address, "plotNumber", phone, role FROM users WHERE id = $1',
+        [req.user!.id]
+      ) as any;
+
+      console.log('✅ Профиль успешно обновлен, возвращаем данные пользователя');
+      res.json(user);
+    } catch (error) {
+      console.error('❌ Ошибка обновления профиля:', error);
+      res.status(500).json({ error: 'Ошибка сервера' });
+    }
+  }
+);
 
 // Получить текущего пользователя
 router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
@@ -739,108 +833,6 @@ router.post(
       });
     } catch (error) {
       console.error('Ошибка подтверждения смены email:', error);
-      res.status(500).json({ error: 'Ошибка сервера' });
-    }
-  }
-);
-
-// Обновить профиль пользователя (только свои данные, без ФИО, адреса и участка)
-router.put(
-  '/me',
-  (req: any, res: Response, next: NextFunction) => {
-    console.log('🚀 PUT /users/me - маршрут зарегистрирован, запрос получен ДО authenticate');
-    console.log('🚀 Метод:', req.method, 'URL:', req.url, 'Path:', req.path);
-    next();
-  },
-  authenticate,
-  async (req: AuthRequest, res: Response) => {
-    console.log('📝 PUT /users/me - запрос получен, пользователь:', req.user!.id);
-    console.log('📝 Тело запроса:', JSON.stringify(req.body));
-    console.log('📝 Headers authorization:', req.headers.authorization ? 'present' : 'missing');
-    
-    // Валидация вручную, без express-validator для этого endpoint
-    const { email, phone } = req.body;
-    
-    // Проверяем email только если он передан и не пустой
-    if (email !== undefined && email !== null && email !== '') {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        console.log('❌ Ошибка валидации email:', email);
-        return res.status(400).json({ error: 'Некорректный email' });
-      }
-    }
-    
-    console.log('🔍 PUT /users/me - валидация пройдена, обработчик вызван');
-    
-    console.log('📝 PUT /users/me - запрос от пользователя:', req.user!.id);
-    console.log('📝 Данные запроса - email:', email, 'phone:', phone);
-    console.log('📝 Типы данных - email type:', typeof email, 'phone type:', typeof phone);
-    console.log('📝 Значения - email === undefined:', email === undefined, 'phone === undefined:', phone === undefined);
-    console.log('📝 Значения - email === null:', email === null, 'phone === null:', phone === null);
-    console.log('📝 Значения - email === "":', email === '', 'phone === "":', phone === '');
-
-    try {
-      // Получаем текущего пользователя для проверки роли
-      const currentUser = await dbGet('SELECT id, role FROM users WHERE id = $1', [req.user!.id]) as any;
-      console.log('👤 Текущий пользователь:', currentUser);
-      
-      // Проверяем телефон вручную
-      if (phone !== undefined && phone !== null && phone !== '' && phone.trim() === '') {
-        console.log('❌ Телефон не может быть пустой строкой');
-        return res.status(400).json({ error: 'Телефон не может быть пустым' });
-      }
-      
-      // Проверяем, что передан хотя бы один параметр для обновления
-      const hasEmail = email !== undefined && email !== null && email !== '';
-      const hasPhone = phone !== undefined && phone !== null && phone !== '' && phone.trim() !== '';
-      
-      console.log('✅ Проверка параметров - hasEmail:', hasEmail, 'hasPhone:', hasPhone);
-      
-      if (!hasEmail && !hasPhone) {
-        console.log('❌ Нет параметров для обновления');
-        return res.status(400).json({ error: 'Необходимо указать хотя бы одно поле для обновления' });
-      }
-      
-      // Для пользователей и прорабов запрещаем прямую смену email
-      // Им нужно использовать механизм подтверждения через код
-      if (hasEmail && (currentUser.role === 'user' || currentUser.role === 'foreman')) {
-        console.log('❌ Попытка смены email для user/foreman - доступ запрещен');
-        return res.status(403).json({ 
-          error: 'Для смены email необходимо подтверждение через код. Используйте /api/users/me/request-email-change' 
-        });
-      }
-
-      // Для админа и security можно менять email напрямую
-      if (hasEmail && currentUser.role !== 'user' && currentUser.role !== 'foreman') {
-        const existingUser = await dbGet('SELECT id FROM users WHERE email = $1 AND id != $2', [email, req.user!.id]);
-        if (existingUser) {
-          return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
-        }
-        await dbRun(
-          'UPDATE users SET email = $1 WHERE id = $2',
-          [email, req.user!.id]
-        );
-      }
-
-      // Обновляем телефон только если он передан и не пустой
-      if (hasPhone) {
-        console.log('📞 Обновление телефона для пользователя', req.user!.id, 'на', phone);
-        await dbRun(
-          'UPDATE users SET phone = $1 WHERE id = $2',
-          [phone, req.user!.id]
-        );
-        console.log('✅ Телефон успешно обновлен');
-      }
-
-      const user = await dbGet(
-        'SELECT id, email, "fullName", address, "plotNumber", phone, role FROM users WHERE id = $1',
-        [req.user!.id]
-      ) as any;
-
-      console.log('✅ Профиль успешно обновлен, возвращаем данные пользователя');
-      res.json(user);
-    } catch (error) {
-      console.error('❌ Ошибка обновления профиля:', error);
       res.status(500).json({ error: 'Ошибка сервера' });
     }
   }
