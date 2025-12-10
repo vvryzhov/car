@@ -740,8 +740,8 @@ router.put(
   '/me',
   authenticate,
   [
-    body('email').optional().isEmail().withMessage('Некорректный email'),
-    body('phone').optional().notEmpty().withMessage('Телефон не может быть пустым'),
+    body('email').optional({ nullable: true, checkFalsy: true }).isEmail().withMessage('Некорректный email'),
+    body('phone').optional({ nullable: true, checkFalsy: true }).notEmpty().withMessage('Телефон не может быть пустым'),
   ],
   async (req: AuthRequest, res: Response) => {
     const errors = validationResult(req);
@@ -755,16 +755,24 @@ router.put(
       // Получаем текущего пользователя для проверки роли
       const currentUser = await dbGet('SELECT id, role FROM users WHERE id = $1', [req.user!.id]) as any;
       
+      // Проверяем, что передан хотя бы один параметр для обновления
+      const hasEmail = email !== undefined && email !== null && email !== '';
+      const hasPhone = phone !== undefined && phone !== null && phone !== '';
+      
+      if (!hasEmail && !hasPhone) {
+        return res.status(400).json({ error: 'Необходимо указать хотя бы одно поле для обновления' });
+      }
+      
       // Для пользователей и прорабов запрещаем прямую смену email
       // Им нужно использовать механизм подтверждения через код
-      if (email !== undefined && (currentUser.role === 'user' || currentUser.role === 'foreman')) {
+      if (hasEmail && (currentUser.role === 'user' || currentUser.role === 'foreman')) {
         return res.status(403).json({ 
           error: 'Для смены email необходимо подтверждение через код. Используйте /api/users/me/request-email-change' 
         });
       }
 
       // Для админа и security можно менять email напрямую
-      if (email !== undefined && currentUser.role !== 'user' && currentUser.role !== 'foreman') {
+      if (hasEmail && currentUser.role !== 'user' && currentUser.role !== 'foreman') {
         const existingUser = await dbGet('SELECT id FROM users WHERE email = $1 AND id != $2', [email, req.user!.id]);
         if (existingUser) {
           return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
@@ -775,7 +783,8 @@ router.put(
         );
       }
 
-      if (phone !== undefined) {
+      // Обновляем телефон только если он передан и не пустой
+      if (hasPhone) {
         await dbRun(
           'UPDATE users SET phone = $1 WHERE id = $2',
           [phone, req.user!.id]
