@@ -1029,7 +1029,7 @@ router.post(
       const frontendUrl = smtpConfig?.frontend_url || process.env.FRONTEND_URL || 'http://localhost:8080';
       const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
       
-      const emailResult = await sendPasswordResetEmail(user.email, token, resetUrl);
+      const emailResult = await sendPasswordResetEmail(user.email, token, resetUrl, true); // true = администратор инициировал
       
       if (emailResult.success) {
         res.json({ message: `Ссылка на сброс пароля отправлена на ${user.email}` });
@@ -1107,7 +1107,7 @@ router.post(
 
           // Отправляем email
           const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
-          const emailResult = await sendPasswordResetEmail(user.email, token, resetUrl);
+          const emailResult = await sendPasswordResetEmail(user.email, token, resetUrl, true); // true = администратор инициировал
 
           if (emailResult.success) {
             results.success++;

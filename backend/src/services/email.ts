@@ -94,7 +94,11 @@ export const sendEmail = async (to: string, subject: string, html: string): Prom
   }
 };
 
-export const sendPasswordResetEmail = async (email: string, token: string, resetUrl: string): Promise<{ success: boolean; error?: string }> => {
+export const sendPasswordResetEmail = async (email: string, token: string, resetUrl: string, isAdminInitiated: boolean = false): Promise<{ success: boolean; error?: string }> => {
+  const introText = isAdminInitiated 
+    ? 'Администратор направил вам ссылку для восстановления пароля для вашей учетной записи.'
+    : 'Вы запросили восстановление пароля для вашей учетной записи.';
+  
   const html = `
     <!DOCTYPE html>
     <html>
@@ -110,13 +114,13 @@ export const sendPasswordResetEmail = async (email: string, token: string, reset
     <body>
       <div class="container">
         <h2>Восстановление пароля</h2>
-        <p>Вы запросили восстановление пароля для вашей учетной записи.</p>
+        <p>${introText}</p>
         <p>Для смены пароля перейдите по ссылке:</p>
         <a href="${resetUrl}" class="button">Сменить пароль</a>
         <p>Или скопируйте эту ссылку в браузер:</p>
         <p style="word-break: break-all; color: #007bff;">${resetUrl}</p>
         <p>Ссылка действительна в течение 1 часа.</p>
-        <p>Если вы не запрашивали восстановление пароля, проигнорируйте это письмо.</p>
+        ${!isAdminInitiated ? '<p>Если вы не запрашивали восстановление пароля, проигнорируйте это письмо.</p>' : ''}
         <div class="footer">
           <p>С уважением,<br>Система управления пропусками</p>
         </div>
