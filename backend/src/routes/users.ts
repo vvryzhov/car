@@ -739,11 +739,18 @@ router.post(
 router.put(
   '/me',
   authenticate,
+  (req: AuthRequest, res: Response, next: NextFunction) => {
+    console.log('📝 PUT /users/me - запрос получен, пользователь:', req.user!.id);
+    console.log('📝 Тело запроса:', JSON.stringify(req.body));
+    console.log('📝 Headers:', JSON.stringify(req.headers));
+    next();
+  },
   [
     body('email').optional({ nullable: true, checkFalsy: true }).isEmail().withMessage('Некорректный email'),
-    body('phone').optional({ nullable: true, checkFalsy: true }).notEmpty().withMessage('Телефон не может быть пустым'),
+    // Убираем валидацию phone, проверяем вручную
   ],
   async (req: AuthRequest, res: Response) => {
+    console.log('🔍 PUT /users/me - обработчик вызван');
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       console.log('❌ Ошибки валидации PUT /users/me:', errors.array());
@@ -755,15 +762,24 @@ router.put(
     console.log('📝 PUT /users/me - запрос от пользователя:', req.user!.id);
     console.log('📝 Данные запроса - email:', email, 'phone:', phone);
     console.log('📝 Типы данных - email type:', typeof email, 'phone type:', typeof phone);
+    console.log('📝 Значения - email === undefined:', email === undefined, 'phone === undefined:', phone === undefined);
+    console.log('📝 Значения - email === null:', email === null, 'phone === null:', phone === null);
+    console.log('📝 Значения - email === "":', email === '', 'phone === "":', phone === '');
 
     try {
       // Получаем текущего пользователя для проверки роли
       const currentUser = await dbGet('SELECT id, role FROM users WHERE id = $1', [req.user!.id]) as any;
       console.log('👤 Текущий пользователь:', currentUser);
       
+      // Проверяем телефон вручную
+      if (phone !== undefined && phone !== null && phone !== '' && phone.trim() === '') {
+        console.log('❌ Телефон не может быть пустой строкой');
+        return res.status(400).json({ error: 'Телефон не может быть пустым' });
+      }
+      
       // Проверяем, что передан хотя бы один параметр для обновления
       const hasEmail = email !== undefined && email !== null && email !== '';
-      const hasPhone = phone !== undefined && phone !== null && phone !== '';
+      const hasPhone = phone !== undefined && phone !== null && phone !== '' && phone.trim() !== '';
       
       console.log('✅ Проверка параметров - hasEmail:', hasEmail, 'hasPhone:', hasPhone);
       
