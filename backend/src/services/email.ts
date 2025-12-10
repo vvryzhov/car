@@ -96,7 +96,7 @@ export const sendEmail = async (to: string, subject: string, html: string): Prom
 
 export const sendPasswordResetEmail = async (email: string, token: string, resetUrl: string, isAdminInitiated: boolean = false): Promise<{ success: boolean; error?: string }> => {
   const introText = isAdminInitiated 
-    ? 'Администратор направил вам ссылку для восстановления пароля для вашей учетной записи.'
+    ? 'Администратор отправил вам ссылку для восстановления пароля к вашей учётной записи.'
     : 'Вы запросили восстановление пароля для вашей учетной записи.';
   
   const html = `

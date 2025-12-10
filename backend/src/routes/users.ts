@@ -6,7 +6,7 @@ import crypto from 'crypto';
 import { body, validationResult } from 'express-validator';
 import { dbGet, dbRun, dbAll } from '../database';
 import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
-import { sendPasswordResetEmail, sendEmailChangeConfirmationCode } from '../services/email';
+import { sendPasswordResetEmail, sendEmailChangeConfirmationCode, sendEmail } from '../services/email';
 import { validatePassword } from '../utils/passwordValidator';
 import { broadcastEvent } from '../services/sse';
 
@@ -1634,5 +1634,77 @@ router.get('/permanent-passes', authenticate, requireRole(['security', 'admin'])
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
+
+// Обратная связь (доступно всем авторизованным пользователям)
+router.post(
+  '/feedback',
+  authenticate,
+  [
+    body('message').notEmpty().withMessage('Сообщение обязательно для заполнения'),
+    body('message').isLength({ min: 10 }).withMessage('Сообщение должно содержать минимум 10 символов'),
+  ],
+  async (req: AuthRequest, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const { message } = req.body;
+      const user = await dbGet('SELECT id, email, "fullName", phone, role FROM users WHERE id = $1', [req.user!.id]) as any;
+
+      if (!user) {
+        return res.status(404).json({ error: 'Пользователь не найден' });
+      }
+
+      // Формируем HTML письма
+      const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .info-box { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0; }
+            .message-box { background-color: #ffffff; padding: 15px; border-left: 4px solid #007bff; margin: 15px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h2>Обратная связь от пользователя</h2>
+            <div class="info-box">
+              <p><strong>Пользователь:</strong> ${user.fullName}</p>
+              <p><strong>Email:</strong> ${user.email}</p>
+              <p><strong>Телефон:</strong> ${user.phone || 'Не указан'}</p>
+              <p><strong>Роль:</strong> ${user.role}</p>
+            </div>
+            <div class="message-box">
+              <h3>Сообщение:</h3>
+              <p>${message.replace(/\n/g, '<br>')}</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      // Отправляем письмо на mail@аносинопарк.рф
+      const result = await sendEmail('mail@аносинопарк.рф', 'Обратная связь от пользователя', html);
+
+      if (result.success) {
+        res.json({ message: 'Ваше сообщение успешно отправлено' });
+      } else {
+        console.error('Ошибка отправки обратной связи:', result.error);
+        res.status(500).json({ 
+          error: 'Ошибка отправки сообщения',
+          details: result.error 
+        });
+      }
+    } catch (error) {
+      console.error('Ошибка обработки обратной связи:', error);
+      res.status(500).json({ error: 'Ошибка сервера' });
+    }
+  }
+);
 
 export default router;

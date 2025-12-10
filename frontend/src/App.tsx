@@ -7,6 +7,8 @@ import SecurityDashboard from './pages/SecurityDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import Settings from './pages/Settings';
 import Help from './pages/Help';
+import Feedback from './pages/Feedback';
+import DateTimeDisplay from './components/DateTimeDisplay';
 import './App.css';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
@@ -27,7 +29,9 @@ const AppRoutes = () => {
   const { user } = useAuth();
 
   return (
-    <Routes>
+    <>
+      {user && <DateTimeDisplay />}
+      <Routes>
       <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
       <Route path="/forgot-password" element={!user ? <ForgotPassword /> : <Navigate to="/dashboard" />} />
       <Route path="/reset-password" element={!user ? <ForgotPassword /> : <Navigate to="/dashboard" />} />
@@ -61,8 +65,17 @@ const AppRoutes = () => {
           </PrivateRoute>
         }
       />
+      <Route
+        path="/feedback"
+        element={
+          <PrivateRoute>
+            <Feedback />
+          </PrivateRoute>
+        }
+      />
       <Route path="/" element={<Navigate to="/dashboard" />} />
     </Routes>
+    </>
   );
 };
 
