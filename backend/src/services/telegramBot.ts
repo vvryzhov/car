@@ -1,7 +1,7 @@
 import TelegramBot, { Message, CallbackQuery } from 'node-telegram-bot-api';
 import { dbGet, dbRun, dbAll } from '../database';
 import crypto from 'crypto';
-import { validateVehicleNumber } from '../utils/vehicleNumberValidator';
+import { validateVehicleNumber, formatVehicleNumber } from '../utils/vehicleNumberValidator';
 import { getBrandByAlias } from '../data/carBrandAliases';
 import { broadcastEvent } from './sse';
 
@@ -419,7 +419,7 @@ https://пропуск.аносинопарк.рф
                       '❌ Отклонено';
         
         message += `${index + 1}. ${pass.vehicleType === 'грузовой' ? '🚚' : '🚗'} ${pass.vehicleBrand || 'N/A'}\n`;
-        message += `   Номер: ${pass.vehicleNumber}\n`;
+        message += `   Номер: ${formatVehicleNumber(pass.vehicleNumber)}\n`;
         message += `   Дата: ${new Date(pass.entryDate).toLocaleDateString('ru-RU')}\n`;
         message += `   Статус: ${status}\n`;
         if (pass.comment) {

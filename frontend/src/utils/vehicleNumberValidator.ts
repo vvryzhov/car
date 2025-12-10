@@ -80,3 +80,76 @@ export const validateVehicleNumber = (vehicleNumber: string): ValidationResult =
   return { valid: false, error: 'Некорректный формат номера' };
 };
 
+/**
+ * Форматирует номер автомобиля с пробелами для лучшей читаемости
+ * Пример: A111AA11 -> A 111 AA 11
+ */
+export const formatVehicleNumber = (vehicleNumber: string): string => {
+  if (!vehicleNumber) return '';
+  
+  // Убираем все пробелы и дефисы, приводим к верхнему регистру
+  const normalized = vehicleNumber.trim().replace(/\s+/g, '').replace(/-/g, '').toUpperCase();
+  
+  if (!normalized) return vehicleNumber; // Если после нормализации пусто, возвращаем исходное
+  
+  // Российский формат: 1 буква, 3 цифры, 2 буквы, 2-3 цифры (A111AA11 или A111AA777)
+  const ruFormat1 = /^([АВЕКМНОРСТУХ])(\d{3})([АВЕКМНОРСТУХ]{2})(\d{2,3})$/i;
+  if (ruFormat1.test(normalized)) {
+    const match = normalized.match(ruFormat1);
+    if (match) {
+      return `${match[1]} ${match[2]} ${match[3]} ${match[4]}`;
+    }
+  }
+  
+  // Российский формат (новый): 2 буквы, 3 цифры, 2-3 цифры (AA11177 или AA111777)
+  const ruFormat2 = /^([АВЕКМНОРСТУХ]{2})(\d{3})(\d{2,3})$/i;
+  if (ruFormat2.test(normalized)) {
+    const match = normalized.match(ruFormat2);
+    if (match) {
+      return `${match[1]} ${match[2]} ${match[3]}`;
+    }
+  }
+  
+  // Казахстанский формат: 3 цифры, 3 буквы, 2 цифры (123ABC01)
+  const kzFormat = /^(\d{3})([АВЕКМНОРСТУХ]{3})(\d{2})$/i;
+  if (kzFormat.test(normalized)) {
+    const match = normalized.match(kzFormat);
+    if (match) {
+      return `${match[1]} ${match[2]} ${match[3]}`;
+    }
+  }
+  
+  // Универсальный формат: если номер содержит буквы и цифры, пытаемся разбить по группам
+  // Ищем паттерн: буквы-цифры-буквы-цифры или цифры-буквы-цифры
+  const parts: string[] = [];
+  let currentPart = '';
+  let lastType: 'letter' | 'digit' | null = null;
+  
+  for (const char of normalized) {
+    const isLetter = /[А-ЯA-Z]/.test(char);
+    const isDigit = /\d/.test(char);
+    const currentType = isLetter ? 'letter' : isDigit ? 'digit' : null;
+    
+    if (currentType && currentType !== lastType && currentPart) {
+      parts.push(currentPart);
+      currentPart = char;
+    } else {
+      currentPart += char;
+    }
+    
+    lastType = currentType || lastType;
+  }
+  
+  if (currentPart) {
+    parts.push(currentPart);
+  }
+  
+  // Если удалось разбить на части, объединяем с пробелами
+  if (parts.length > 1) {
+    return parts.join(' ');
+  }
+  
+  // Если не удалось определить формат, возвращаем исходное значение
+  return vehicleNumber;
+};
+

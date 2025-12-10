@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { carBrands } from '../data/carBrands';
 import { getBrandByAlias, searchBrands } from '../data/carBrandAliases';
-import { validateVehicleNumber } from '../utils/vehicleNumberValidator';
+import { validateVehicleNumber, formatVehicleNumber } from '../utils/vehicleNumberValidator';
 
 interface PermanentPass {
   id: number;
@@ -367,7 +367,7 @@ const PermanentPassesManager = ({ userId }: PermanentPassesManagerProps) => {
                   }}
                 >
                   <div style={{ flex: 1 }}>
-                    <div><strong>{pass.vehicleBrand || 'Без марки'}</strong> - {pass.vehicleNumber}</div>
+                    <div><strong>{pass.vehicleBrand || 'Без марки'}</strong> - {formatVehicleNumber(pass.vehicleNumber)}</div>
                     <div style={{ fontSize: '14px', color: '#666' }}>
                       {pass.vehicleType} {pass.comment ? `• ${pass.comment}` : ''}
                     </div>

@@ -5,6 +5,7 @@ import PassForm from '../components/PassForm';
 import ProfileForm from '../components/ProfileForm';
 import Footer from '../components/Footer';
 import { format } from 'date-fns';
+import { formatVehicleNumber } from '../utils/vehicleNumberValidator';
 
 interface Pass {
   id: number;
@@ -159,7 +160,7 @@ const Dashboard = () => {
                     <tr key={pass.id}>
                       <td data-label="Тип транспорта">{pass.vehicleType}</td>
                       <td data-label="Марка авто">{pass.vehicleBrand || '-'}</td>
-                      <td data-label="Номер авто">{pass.vehicleNumber}</td>
+                      <td data-label="Номер авто">{formatVehicleNumber(pass.vehicleNumber)}</td>
                       <td data-label="Дата въезда">
                         {format(new Date(pass.entryDate), 'dd.MM.yyyy')}
                       </td>
