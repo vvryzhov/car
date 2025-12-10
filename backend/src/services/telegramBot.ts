@@ -402,7 +402,7 @@ https://пропуск.аносинопарк.рф
 
     try {
       const passes = await dbAll(
-        'SELECT * FROM passes WHERE "userId" = $1 AND "deletedAt" IS NULL ORDER BY "entryDate" DESC, "createdAt" DESC LIMIT 10',
+        'SELECT * FROM passes WHERE "userId" = $1 AND "deletedAt" IS NULL AND status != \'personal_vehicle\' AND ("isPermanent" IS NULL OR "isPermanent" = false) ORDER BY "entryDate" DESC, "createdAt" DESC LIMIT 10',
         [user.id]
       ) as any[];
 
