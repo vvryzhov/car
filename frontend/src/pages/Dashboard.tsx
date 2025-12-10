@@ -98,6 +98,9 @@ const Dashboard = () => {
             <button className="btn btn-secondary" onClick={() => window.location.href = '/help'} style={{ marginRight: '10px' }}>
               Справка
             </button>
+            <button className="btn btn-secondary" onClick={() => window.location.href = '/feedback'} style={{ marginRight: '10px' }}>
+              Обратная связь
+            </button>
             <button className="btn btn-secondary" onClick={logout}>
               Выйти
             </button>

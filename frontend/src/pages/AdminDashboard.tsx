@@ -347,6 +347,13 @@ const AdminDashboard = () => {
             >
               Справка
             </button>
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => navigate('/feedback')}
+              style={{ marginRight: '10px' }}
+            >
+              Обратная связь
+            </button>
             <button className="btn btn-secondary" onClick={logout}>
               Выйти
             </button>
