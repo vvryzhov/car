@@ -1553,18 +1553,23 @@ router.put('/me/permanent-passes/:id', authenticate, requireRole(['user', 'forem
     }
 
     // Обновляем пропуск
+    // Обрабатываем comment: если передан undefined - оставляем старое значение, если пустая строка - устанавливаем null
+    const commentValue = comment !== undefined 
+      ? (comment === '' || comment === null ? null : comment) 
+      : pass.comment;
+    
     await dbRun(
       `UPDATE passes 
        SET "vehicleType" = COALESCE($1, "vehicleType"),
            "vehicleBrand" = COALESCE($2, "vehicleBrand"),
            "vehicleNumber" = COALESCE($3, "vehicleNumber"),
-           comment = COALESCE($4, comment)
+           comment = $4
        WHERE id = $5`,
       [
         vehicleType || pass.vehicleType,
         vehicleBrand || pass.vehicleBrand,
         normalizedVehicleNumber,
-        comment !== undefined ? comment : pass.comment,
+        commentValue,
         req.params.id
       ]
     );
