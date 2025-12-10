@@ -746,26 +746,36 @@ router.put(
   async (req: AuthRequest, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Ошибки валидации PUT /users/me:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
     const { email, phone } = req.body;
+    
+    console.log('📝 PUT /users/me - запрос от пользователя:', req.user!.id);
+    console.log('📝 Данные запроса - email:', email, 'phone:', phone);
+    console.log('📝 Типы данных - email type:', typeof email, 'phone type:', typeof phone);
 
     try {
       // Получаем текущего пользователя для проверки роли
       const currentUser = await dbGet('SELECT id, role FROM users WHERE id = $1', [req.user!.id]) as any;
+      console.log('👤 Текущий пользователь:', currentUser);
       
       // Проверяем, что передан хотя бы один параметр для обновления
       const hasEmail = email !== undefined && email !== null && email !== '';
       const hasPhone = phone !== undefined && phone !== null && phone !== '';
       
+      console.log('✅ Проверка параметров - hasEmail:', hasEmail, 'hasPhone:', hasPhone);
+      
       if (!hasEmail && !hasPhone) {
+        console.log('❌ Нет параметров для обновления');
         return res.status(400).json({ error: 'Необходимо указать хотя бы одно поле для обновления' });
       }
       
       // Для пользователей и прорабов запрещаем прямую смену email
       // Им нужно использовать механизм подтверждения через код
       if (hasEmail && (currentUser.role === 'user' || currentUser.role === 'foreman')) {
+        console.log('❌ Попытка смены email для user/foreman - доступ запрещен');
         return res.status(403).json({ 
           error: 'Для смены email необходимо подтверждение через код. Используйте /api/users/me/request-email-change' 
         });
@@ -785,10 +795,12 @@ router.put(
 
       // Обновляем телефон только если он передан и не пустой
       if (hasPhone) {
+        console.log('📞 Обновление телефона для пользователя', req.user!.id, 'на', phone);
         await dbRun(
           'UPDATE users SET phone = $1 WHERE id = $2',
           [phone, req.user!.id]
         );
+        console.log('✅ Телефон успешно обновлен');
       }
 
       const user = await dbGet(
@@ -796,9 +808,10 @@ router.put(
         [req.user!.id]
       ) as any;
 
+      console.log('✅ Профиль успешно обновлен, возвращаем данные пользователя');
       res.json(user);
     } catch (error) {
-      console.error('Ошибка обновления профиля:', error);
+      console.error('❌ Ошибка обновления профиля:', error);
       res.status(500).json({ error: 'Ошибка сервера' });
     }
   }
