@@ -738,6 +738,11 @@ router.post(
 // Обновить профиль пользователя (только свои данные, без ФИО, адреса и участка)
 router.put(
   '/me',
+  (req: any, res: Response, next: NextFunction) => {
+    console.log('🚀 PUT /users/me - маршрут зарегистрирован, запрос получен ДО authenticate');
+    console.log('🚀 Метод:', req.method, 'URL:', req.url, 'Path:', req.path);
+    next();
+  },
   authenticate,
   async (req: AuthRequest, res: Response) => {
     console.log('📝 PUT /users/me - запрос получен, пользователь:', req.user!.id);
