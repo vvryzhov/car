@@ -101,6 +101,16 @@ export const initDatabase = async () => {
       await dbRun('ALTER TABLE users ADD COLUMN "telegramId" BIGINT UNIQUE');
     }
 
+    // Добавляем поле lastLoginAt, если его нет
+    const lastLoginAtCheck = await dbGet(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name='users' AND column_name='lastLoginAt'
+    `);
+    if (!lastLoginAtCheck) {
+      await dbRun('ALTER TABLE users ADD COLUMN "lastLoginAt" TIMESTAMP');
+    }
+
     // Таблица заявок на пропуск
     await dbRun(`
       CREATE TABLE IF NOT EXISTS passes (

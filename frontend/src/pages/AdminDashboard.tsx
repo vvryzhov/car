@@ -24,6 +24,7 @@ interface User {
   deactivatedAt?: string | null;
   deactivationDate?: string | null;
   createdAt: string;
+  lastLoginAt?: string | null;
   plots?: Plot[];
 }
 
@@ -586,6 +587,7 @@ const AdminDashboard = () => {
                     <th>Телефон</th>
                     <th>Роль</th>
                     <th>Дата создания</th>
+                    <th>Последний вход</th>
                     <th>Действия</th>
                   </tr>
                 </thead>
@@ -624,6 +626,21 @@ const AdminDashboard = () => {
                         )}
                       </td>
                       <td data-label="Дата создания">{new Date(u.createdAt).toLocaleDateString('ru-RU')}</td>
+                      <td data-label="Последний вход">
+                        {u.lastLoginAt ? (
+                          <span title={new Date(u.lastLoginAt).toLocaleString('ru-RU')}>
+                            {new Date(u.lastLoginAt).toLocaleString('ru-RU', { 
+                              day: '2-digit', 
+                              month: '2-digit', 
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        ) : (
+                          <span style={{ color: '#999' }}>Никогда</span>
+                        )}
+                      </td>
                       <td data-label="Действия">
                         <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
                           <button

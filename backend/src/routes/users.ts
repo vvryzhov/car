@@ -18,7 +18,7 @@ const router = express.Router();
 router.get('/', authenticate, requireRole(['admin']), async (req: AuthRequest, res: Response) => {
   try {
     const { email, phone, fullName, plotNumber, role } = req.query;
-    let query = 'SELECT id, email, "fullName", phone, role, "deactivatedAt", "deactivationDate", "createdAt" FROM users WHERE 1=1';
+    let query = 'SELECT id, email, "fullName", phone, role, "deactivatedAt", "deactivationDate", "createdAt", "lastLoginAt" FROM users WHERE 1=1';
     const params: any[] = [];
     let paramIndex = 1;
 
