@@ -72,7 +72,7 @@ export const initTelegramBot = () => {
   }
 
   // Команда /start
-  bot.onText(/\/start/, async (msg: Message) => {
+  bot.onText(/^\/start$/, async (msg: Message) => {
     const chatId = msg.chat.id;
     const telegramId = msg.from?.id;
 
@@ -180,7 +180,8 @@ https://пропуск.аносинопарк.рф
   });
 
   // Команда /create - создает заявку на легковой авто на текущий день
-  bot.onText(/\/create/, async (msg: Message) => {
+  // Используем ^ и $ для точного совпадения, чтобы не перехватывать /create_future и /create_truck
+  bot.onText(/^\/create$/, async (msg: Message) => {
     const chatId = msg.chat.id;
     const telegramId = msg.from?.id;
 
@@ -266,7 +267,7 @@ https://пропуск.аносинопарк.рф
   });
 
   // Команда /create_truck - создает пропуск на грузовое авто на текущий день
-  bot.onText(/\/create_truck/, async (msg: Message) => {
+  bot.onText(/^\/create_truck$/, async (msg: Message) => {
     const chatId = msg.chat.id;
     const telegramId = msg.from?.id;
 
@@ -352,7 +353,7 @@ https://пропуск.аносинопарк.рф
   });
 
   // Команда /create_future - создает пропуск с запросом типа, марки, номера, даты
-  bot.onText(/\/create_future/, async (msg: Message) => {
+  bot.onText(/^\/create_future$/, async (msg: Message) => {
     const chatId = msg.chat.id;
     const telegramId = msg.from?.id;
 
@@ -705,7 +706,7 @@ https://пропуск.аносинопарк.рф
   });
 
   // Команда /list
-  bot.onText(/\/list/, async (msg: Message) => {
+  bot.onText(/^\/list$/, async (msg: Message) => {
     const chatId = msg.chat.id;
     const telegramId = msg.from?.id;
 
@@ -760,7 +761,7 @@ https://пропуск.аносинопарк.рф
   });
 
   // Команда /help
-  bot.onText(/\/help/, (msg: Message) => {
+  bot.onText(/^\/help$/, (msg: Message) => {
     const chatId = msg.chat.id;
     const helpText = `
 📖 Справка по использованию бота
