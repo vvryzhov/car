@@ -12,7 +12,7 @@ let bot: TelegramBot | null = null;
 
 // Хранилище состояний пользователей (в production лучше использовать Redis или БД)
 interface UserState {
-  action: 'creating_pass' | 'waiting_vehicle_type' | 'waiting_vehicle_brand' | 'waiting_vehicle_number' | 'waiting_entry_date' | 'waiting_plot' | 'waiting_comment';
+  action: 'creating_pass' | 'waiting_vehicle_type' | 'waiting_vehicle_brand' | 'waiting_vehicle_number' | 'waiting_entry_date' | 'waiting_plot' | 'waiting_comment' | 'waiting_vehicle_number_and_brand' | 'waiting_vehicle_brand_future' | 'waiting_vehicle_number_future';
   data?: any;
 }
 
@@ -79,7 +79,9 @@ export const initTelegramBot = () => {
 Вы уже привязали свой Telegram аккаунт.
 
 📋 Доступные команды:
-/create - Создать новую заявку на пропуск
+/create - Создать заявку на легковой авто (на сегодня)
+/create_truck - Создать пропуск на грузовое авто (на сегодня)
+/create_future - Создать пропуск на будущую дату
 /list - Просмотреть мои заявки
 /help - Справка
 
@@ -163,8 +165,174 @@ https://пропуск.аносинопарк.рф
     }
   });
 
-  // Команда /create
+  // Команда /create - создает заявку на легковой авто на текущий день
   bot.onText(/\/create/, async (msg: Message) => {
+    const chatId = msg.chat.id;
+    const telegramId = msg.from?.id;
+
+    if (!telegramId) {
+      bot?.sendMessage(chatId, 'Ошибка: не удалось определить ваш Telegram ID');
+      return;
+    }
+
+    const user = await dbGet('SELECT id, role FROM users WHERE "telegramId" = $1', [telegramId]) as any;
+    
+    if (!user) {
+      bot?.sendMessage(chatId, '❌ Ваш Telegram аккаунт не привязан. Используйте /link для привязки.');
+      return;
+    }
+
+    if (user.role !== 'user' && user.role !== 'foreman' && user.role !== 'admin') {
+      bot?.sendMessage(chatId, '❌ У вас нет прав на создание заявок');
+      return;
+    }
+
+    // Проверяем наличие участков
+    const plots = await dbAll(
+      'SELECT id, address, "plotNumber" FROM user_plots WHERE "userId" = $1',
+      [user.id]
+    ) as any[];
+
+    if (plots.length === 0) {
+      bot?.sendMessage(chatId, '❌ У вас нет добавленных участков. Добавьте участок в веб-интерфейсе.');
+      return;
+    }
+
+    // Получаем текущую дату в формате ГГГГ-ММ-ДД
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayFormatted = `${year}-${month}-${day}`;
+
+    // Если участок один, используем его автоматически
+    if (plots.length === 1) {
+      const plot = plots[0];
+      userStates.set(telegramId, {
+        action: 'waiting_vehicle_number_and_brand',
+        data: {
+          userId: user.id,
+          plots,
+          vehicleType: 'легковой',
+          entryDate: todayFormatted,
+          plotId: plot.id,
+          address: plot.address || plot.plotNumber,
+          plotNumber: plot.plotNumber
+        }
+      });
+      bot?.sendMessage(chatId, '📝 Создание заявки на легковой авто на сегодня\n\n✍️ Введите номер авто и марку (например: Р074НН797 Kia K5):');
+    } else {
+      // Если участков несколько, сначала выбираем участок
+      userStates.set(telegramId, {
+        action: 'waiting_plot',
+        data: {
+          userId: user.id,
+          plots,
+          vehicleType: 'легковой',
+          entryDate: todayFormatted,
+          isQuickCreate: true // Флаг для быстрого создания
+        }
+      });
+
+      const plotButtons = plots.map((plot: any) => [
+        { text: `${plot.plotNumber} - ${plot.address || 'Без адреса'}`, callback_data: `plot:${plot.id}` }
+      ]);
+
+      const keyboard = {
+        reply_markup: {
+          inline_keyboard: plotButtons
+        }
+      };
+
+      bot?.sendMessage(chatId, '📝 Создание заявки на легковой авто на сегодня\n\n🏠 Выберите участок:', keyboard);
+    }
+  });
+
+  // Команда /create_truck - создает пропуск на грузовое авто на текущий день
+  bot.onText(/\/create_truck/, async (msg: Message) => {
+    const chatId = msg.chat.id;
+    const telegramId = msg.from?.id;
+
+    if (!telegramId) {
+      bot?.sendMessage(chatId, 'Ошибка: не удалось определить ваш Telegram ID');
+      return;
+    }
+
+    const user = await dbGet('SELECT id, role FROM users WHERE "telegramId" = $1', [telegramId]) as any;
+    
+    if (!user) {
+      bot?.sendMessage(chatId, '❌ Ваш Telegram аккаунт не привязан. Используйте /link для привязки.');
+      return;
+    }
+
+    if (user.role !== 'user' && user.role !== 'foreman' && user.role !== 'admin') {
+      bot?.sendMessage(chatId, '❌ У вас нет прав на создание заявок');
+      return;
+    }
+
+    // Проверяем наличие участков
+    const plots = await dbAll(
+      'SELECT id, address, "plotNumber" FROM user_plots WHERE "userId" = $1',
+      [user.id]
+    ) as any[];
+
+    if (plots.length === 0) {
+      bot?.sendMessage(chatId, '❌ У вас нет добавленных участков. Добавьте участок в веб-интерфейсе.');
+      return;
+    }
+
+    // Получаем текущую дату в формате ГГГГ-ММ-ДД
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayFormatted = `${year}-${month}-${day}`;
+
+    // Если участок один, используем его автоматически
+    if (plots.length === 1) {
+      const plot = plots[0];
+      userStates.set(telegramId, {
+        action: 'waiting_vehicle_number_and_brand',
+        data: {
+          userId: user.id,
+          plots,
+          vehicleType: 'грузовой',
+          entryDate: todayFormatted,
+          plotId: plot.id,
+          address: plot.address || plot.plotNumber,
+          plotNumber: plot.plotNumber
+        }
+      });
+      bot?.sendMessage(chatId, '📝 Создание пропуска на грузовое авто на сегодня\n\n✍️ Введите номер авто и марку (например: Р074НН797 Kia K5):');
+    } else {
+      // Если участков несколько, сначала выбираем участок
+      userStates.set(telegramId, {
+        action: 'waiting_plot',
+        data: {
+          userId: user.id,
+          plots,
+          vehicleType: 'грузовой',
+          entryDate: todayFormatted,
+          isQuickCreate: true // Флаг для быстрого создания
+        }
+      });
+
+      const plotButtons = plots.map((plot: any) => [
+        { text: `${plot.plotNumber} - ${plot.address || 'Без адреса'}`, callback_data: `plot:${plot.id}` }
+      ]);
+
+      const keyboard = {
+        reply_markup: {
+          inline_keyboard: plotButtons
+        }
+      };
+
+      bot?.sendMessage(chatId, '📝 Создание пропуска на грузовое авто на сегодня\n\n🏠 Выберите участок:', keyboard);
+    }
+  });
+
+  // Команда /create_future - создает пропуск с запросом типа, марки, номера, даты
+  bot.onText(/\/create_future/, async (msg: Message) => {
     const chatId = msg.chat.id;
     const telegramId = msg.from?.id;
 
@@ -199,7 +367,7 @@ https://пропуск.аносинопарк.рф
     // Инициализируем состояние создания заявки
     userStates.set(telegramId, {
       action: 'waiting_vehicle_type',
-      data: { userId: user.id, plots }
+      data: { userId: user.id, plots, isFuture: true }
     });
 
     const keyboard = {
@@ -211,7 +379,7 @@ https://пропуск.аносинопарк.рф
       }
     };
 
-    bot?.sendMessage(chatId, '📝 Создание новой заявки на пропуск\n\nВыберите тип транспорта:', keyboard);
+    bot?.sendMessage(chatId, '📝 Создание пропуска на будущую дату\n\nВыберите тип транспорта:', keyboard);
   });
 
   // Обработка callback кнопок
@@ -235,10 +403,18 @@ https://пропуск.аносинопарк.рф
     if (data.startsWith('vehicle_type:')) {
       const vehicleType = data.split(':')[1];
       state.data.vehicleType = vehicleType;
-      state.action = 'waiting_vehicle_brand';
-      userStates.set(telegramId, state);
-
-      bot?.sendMessage(chatId, `✅ Тип транспорта: ${vehicleType}\n\n✍️ Введите марку автомобиля (например: Toyota, BMW, Лада):`);
+      
+      // Если это команда create_future, запрашиваем марку отдельно
+      if (state.data.isFuture) {
+        state.action = 'waiting_vehicle_brand_future';
+        userStates.set(telegramId, state);
+        bot?.sendMessage(chatId, `✅ Тип транспорта: ${vehicleType}\n\n✍️ Введите марку автомобиля (например: Toyota, BMW, Лада):`);
+      } else {
+        // Старый путь для обратной совместимости
+        state.action = 'waiting_vehicle_brand';
+        userStates.set(telegramId, state);
+        bot?.sendMessage(chatId, `✅ Тип транспорта: ${vehicleType}\n\n✍️ Введите марку автомобиля (например: Toyota, BMW, Лада):`);
+      }
     }
     // Обработка выбора участка
     else if (data.startsWith('plot:')) {
@@ -249,10 +425,28 @@ https://пропуск.аносинопарк.рф
         state.data.plotId = plotId;
         state.data.address = plot.address || plot.plotNumber;
         state.data.plotNumber = plot.plotNumber;
-        state.action = 'waiting_comment';
-        userStates.set(telegramId, state);
-
-        bot?.sendMessage(chatId, `✅ Участок: ${plot.plotNumber}\nАдрес: ${plot.address || plot.plotNumber}\n\n💬 Введите комментарий (или отправьте "-" для пропуска):`);
+        
+        // Если это быстрая команда (create или create_truck), запрашиваем номер и марку вместе
+        if (state.data.isQuickCreate) {
+          state.action = 'waiting_vehicle_number_and_brand';
+          userStates.set(telegramId, state);
+          bot?.sendMessage(chatId, `✅ Участок: ${plot.plotNumber}\nАдрес: ${plot.address || plot.plotNumber}\n\n✍️ Введите номер авто и марку (например: Р074НН797 Kia K5):`);
+        } else if (state.data.isFuture) {
+          // Для create_future после выбора участка сразу создаем заявку
+          state.data.comment = null;
+          userStates.set(telegramId, state);
+          
+          // Создаем заявку
+          await createPassFromBot(state.data);
+          userStates.delete(telegramId);
+          
+          bot?.sendMessage(chatId, `✅ Участок: ${plot.plotNumber}\nАдрес: ${plot.address || plot.plotNumber}\n\n✅ Заявка успешно создана!\n\nИспользуйте /list для просмотра ваших заявок.`);
+        } else {
+          // Старый путь - запрашиваем комментарий
+          state.action = 'waiting_comment';
+          userStates.set(telegramId, state);
+          bot?.sendMessage(chatId, `✅ Участок: ${plot.plotNumber}\nАдрес: ${plot.address || plot.plotNumber}\n\n💬 Введите комментарий (или отправьте "-" для пропуска):`);
+        }
       }
     }
   });
@@ -345,21 +539,117 @@ https://пропуск.аносинопарк.рф
           // Конвертируем в ГГГГ-ММ-ДД для сохранения в БД
           const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           state.data.entryDate = formattedDate;
-          state.action = 'waiting_plot';
+
+          // Если участок один, используем его автоматически
+          if (state.data.plots.length === 1) {
+            const plot = state.data.plots[0];
+            state.data.plotId = plot.id;
+            state.data.address = plot.address || plot.plotNumber;
+            state.data.plotNumber = plot.plotNumber;
+            state.data.comment = null;
+            state.action = 'waiting_comment'; // Устанавливаем для завершения
+            userStates.set(telegramId, state);
+
+            // Создаем заявку
+            await createPassFromBot(state.data);
+            userStates.delete(telegramId);
+
+            bot?.sendMessage(chatId, `✅ Дата въезда: ${text.trim()}\n✅ Участок: ${plot.plotNumber}\n\n✅ Заявка успешно создана!\n\nИспользуйте /list для просмотра ваших заявок.`);
+          } else {
+            // Если участков несколько, запрашиваем выбор
+            state.action = 'waiting_plot';
+            userStates.set(telegramId, state);
+
+            // Создаем клавиатуру с участками
+            const plotButtons = state.data.plots.map((plot: any) => [
+              { text: `${plot.plotNumber} - ${plot.address || 'Без адреса'}`, callback_data: `plot:${plot.id}` }
+            ]);
+
+            const keyboard = {
+              reply_markup: {
+                inline_keyboard: plotButtons
+              }
+            };
+
+            bot?.sendMessage(chatId, `✅ Дата въезда: ${text.trim()}\n\n🏠 Выберите участок:`, keyboard);
+          }
+          break;
+        }
+
+        case 'waiting_vehicle_number_and_brand': {
+          // Парсим номер и марку из одного сообщения
+          // Формат: "Р074НН797 Kia K5" - первое слово это номер, остальное марка
+          const parts = text.trim().split(/\s+/);
+          if (parts.length < 2) {
+            bot?.sendMessage(chatId, '❌ Неверный формат. Введите номер и марку через пробел (например: Р074НН797 Kia K5)');
+            return;
+          }
+
+          const vehicleNumber = parts[0].trim().toUpperCase();
+          const vehicleBrand = parts.slice(1).join(' ').trim();
+
+          // Валидация номера
+          const validation = validateVehicleNumber(vehicleNumber);
+          if (!validation.valid) {
+            bot?.sendMessage(chatId, `❌ ${validation.error}\n\nПопробуйте еще раз:`);
+            return;
+          }
+
+          // Проверяем алиасы для марки
+          let finalBrand = vehicleBrand;
+          const aliasBrand = getBrandByAlias(vehicleBrand);
+          if (aliasBrand) {
+            finalBrand = aliasBrand;
+          }
+
+          state.data.vehicleNumber = vehicleNumber;
+          state.data.vehicleBrand = finalBrand;
+          state.data.comment = null; // Для быстрых команд комментарий не запрашиваем
+
+          // Создаем заявку
+          await createPassFromBot(state.data);
+
+          userStates.delete(telegramId);
+
+          bot?.sendMessage(chatId, `✅ Заявка успешно создана!\n\n🚗 ${finalBrand} ${formatVehicleNumber(vehicleNumber)}\n📅 ${new Date(state.data.entryDate).toLocaleDateString('ru-RU')}\n\nИспользуйте /list для просмотра ваших заявок.`);
+          break;
+        }
+
+        case 'waiting_vehicle_brand_future': {
+          let vehicleBrand = text.trim();
+          // Проверяем алиасы
+          const aliasBrand = getBrandByAlias(vehicleBrand);
+          if (aliasBrand) {
+            vehicleBrand = aliasBrand;
+          }
+          
+          state.data.vehicleBrand = vehicleBrand;
+          state.action = 'waiting_vehicle_number_future';
           userStates.set(telegramId, state);
 
-          // Создаем клавиатуру с участками
-          const plotButtons = state.data.plots.map((plot: any) => [
-            { text: `${plot.plotNumber} - ${plot.address || 'Без адреса'}`, callback_data: `plot:${plot.id}` }
-          ]);
+          bot?.sendMessage(chatId, `✅ Марка: ${vehicleBrand}\n\n🔢 Введите номер автомобиля (например: А123БВ777):`);
+          break;
+        }
 
-          const keyboard = {
-            reply_markup: {
-              inline_keyboard: plotButtons
-            }
-          };
+        case 'waiting_vehicle_number_future': {
+          const validation = validateVehicleNumber(text.trim());
+          if (!validation.valid) {
+            bot?.sendMessage(chatId, `❌ ${validation.error}\n\nПопробуйте еще раз:`);
+            return;
+          }
 
-          bot?.sendMessage(chatId, `✅ Дата въезда: ${text.trim()}\n\n🏠 Выберите участок:`, keyboard);
+          state.data.vehicleNumber = text.trim().toUpperCase();
+          state.action = 'waiting_entry_date';
+          userStates.set(telegramId, state);
+
+          // Форматируем сегодняшнюю дату в дд-мм-гггг
+          const today = new Date();
+          const day = String(today.getDate()).padStart(2, '0');
+          const month = String(today.getMonth() + 1).padStart(2, '0');
+          const year = today.getFullYear();
+          const todayFormatted = `${day}-${month}-${year}`;
+          
+          bot?.sendMessage(chatId, `✅ Номер: ${state.data.vehicleNumber}\n\n📅 Введите дату въезда в формате дд-мм-гггг (например: ${todayFormatted}):`);
           break;
         }
 
@@ -443,7 +733,9 @@ https://пропуск.аносинопарк.рф
 
 🔹 /start - Начать работу с ботом
 🔹 /link <код> - Привязать Telegram к аккаунту
-🔹 /create - Создать новую заявку на пропуск
+🔹 /create - Создать заявку на легковой авто (на сегодня)
+🔹 /create_truck - Создать пропуск на грузовое авто (на сегодня)
+🔹 /create_future - Создать пропуск на будущую дату
 🔹 /list - Просмотреть мои заявки (последние 10)
 🔹 /help - Показать эту справку
 
