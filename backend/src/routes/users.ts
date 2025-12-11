@@ -127,6 +127,54 @@ router.get('/stats', authenticate, requireRole(['admin']), async (req: AuthReque
   }
 });
 
+// Изменить свой пароль
+// ВАЖНО: Этот маршрут должен быть ПЕРЕД router.put('/me', ...), чтобы Express правильно его находил
+router.put(
+  '/me/password',
+  authenticate,
+  [
+    body('currentPassword').notEmpty().withMessage('Текущий пароль обязателен'),
+    body('newPassword').isLength({ min: 6 }).withMessage('Новый пароль должен быть не менее 6 символов'),
+  ],
+  async (req: AuthRequest, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    try {
+      const user = await dbGet('SELECT * FROM users WHERE id = $1', [req.user!.id]) as any;
+      if (!user) {
+        return res.status(404).json({ error: 'Пользователь не найден' });
+      }
+
+      const { currentPassword, newPassword } = req.body;
+
+      // Валидация пароля
+      const passwordValidation = validatePassword(newPassword);
+      if (!passwordValidation.valid) {
+        return res.status(400).json({ error: passwordValidation.error });
+      }
+
+      const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: 'Неверный текущий пароль' });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await dbRun(
+        'UPDATE users SET password = $1 WHERE id = $2',
+        [hashedPassword, req.user!.id]
+      );
+
+      res.json({ message: 'Пароль изменен' });
+    } catch (error) {
+      console.error('Ошибка изменения пароля:', error);
+      res.status(500).json({ error: 'Ошибка сервера' });
+    }
+  }
+);
+
 // Обновить профиль пользователя (только свои данные, без ФИО, адреса и участка)
 // ВАЖНО: Этот маршрут должен быть ПЕРЕД router.get('/me', ...), чтобы Express правильно его находил
 router.put(
@@ -833,53 +881,6 @@ router.post(
       });
     } catch (error) {
       console.error('Ошибка подтверждения смены email:', error);
-      res.status(500).json({ error: 'Ошибка сервера' });
-    }
-  }
-);
-
-// Изменить свой пароль
-router.put(
-  '/me/password',
-  authenticate,
-  [
-    body('currentPassword').notEmpty().withMessage('Текущий пароль обязателен'),
-    body('newPassword').isLength({ min: 6 }).withMessage('Новый пароль должен быть не менее 6 символов'),
-  ],
-  async (req: AuthRequest, res: Response) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    try {
-      const user = await dbGet('SELECT * FROM users WHERE id = $1', [req.user!.id]) as any;
-      if (!user) {
-        return res.status(404).json({ error: 'Пользователь не найден' });
-      }
-
-      const { currentPassword, newPassword } = req.body;
-
-      // Валидация пароля
-      const passwordValidation = validatePassword(newPassword);
-      if (!passwordValidation.valid) {
-        return res.status(400).json({ error: passwordValidation.error });
-      }
-
-      const isValidPassword = await bcrypt.compare(currentPassword, user.password);
-      if (!isValidPassword) {
-        return res.status(401).json({ error: 'Неверный текущий пароль' });
-      }
-
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-      await dbRun(
-        'UPDATE users SET password = $1 WHERE id = $2',
-        [hashedPassword, req.user!.id]
-      );
-
-      res.json({ message: 'Пароль изменен' });
-    } catch (error) {
-      console.error('Ошибка изменения пароля:', error);
       res.status(500).json({ error: 'Ошибка сервера' });
     }
   }
