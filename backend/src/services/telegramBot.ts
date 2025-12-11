@@ -18,6 +18,18 @@ interface UserState {
 
 const userStates = new Map<number, UserState>();
 
+// Функция для обновления времени последней активности пользователя
+async function updateUserActivity(userId: number, role: string) {
+  // Обновляем только для пользователей и прорабов
+  if (role === 'user' || role === 'foreman') {
+    try {
+      await dbRun('UPDATE users SET "lastLoginAt" = NOW() WHERE id = $1', [userId]);
+    } catch (error) {
+      console.error('Ошибка обновления lastLoginAt для пользователя', userId, error);
+    }
+  }
+}
+
 export const initTelegramBot = () => {
   // Отладочная информация
   const tokenFromEnv = process.env.TELEGRAM_BOT_TOKEN;
@@ -70,9 +82,11 @@ export const initTelegramBot = () => {
     }
 
     // Проверяем, привязан ли аккаунт
-    const user = await dbGet('SELECT id, "fullName", email FROM users WHERE "telegramId" = $1', [telegramId]) as any;
+    const user = await dbGet('SELECT id, "fullName", email, role FROM users WHERE "telegramId" = $1', [telegramId]) as any;
     
     if (user) {
+      // Обновляем активность для пользователей и прорабов
+      await updateUserActivity(user.id, user.role);
       const welcomeText = `
 👋 Добро пожаловать, ${user.fullName}!
 
@@ -182,6 +196,9 @@ https://пропуск.аносинопарк.рф
       return;
     }
 
+    // Обновляем активность для пользователей и прорабов
+    await updateUserActivity(user.id, user.role);
+
     if (user.role !== 'user' && user.role !== 'foreman' && user.role !== 'admin') {
       bot?.sendMessage(chatId, '❌ У вас нет прав на создание заявок');
       return;
@@ -264,6 +281,9 @@ https://пропуск.аносинопарк.рф
       bot?.sendMessage(chatId, '❌ Ваш Telegram аккаунт не привязан. Используйте /link для привязки.');
       return;
     }
+
+    // Обновляем активность для пользователей и прорабов
+    await updateUserActivity(user.id, user.role);
 
     if (user.role !== 'user' && user.role !== 'foreman' && user.role !== 'admin') {
       bot?.sendMessage(chatId, '❌ У вас нет прав на создание заявок');
@@ -348,6 +368,9 @@ https://пропуск.аносинопарк.рф
       return;
     }
 
+    // Обновляем активность для пользователей и прорабов
+    await updateUserActivity(user.id, user.role);
+
     if (user.role !== 'user' && user.role !== 'foreman' && user.role !== 'admin') {
       bot?.sendMessage(chatId, '❌ У вас нет прав на создание заявок');
       return;
@@ -397,6 +420,14 @@ https://пропуск.аносинопарк.рф
     if (!state || !state.data) {
       bot?.sendMessage(chatId, '❌ Сессия истекла. Начните заново с команды /create');
       return;
+    }
+
+    // Обновляем активность для пользователей и прорабов
+    if (state.data.userId) {
+      const user = await dbGet('SELECT role FROM users WHERE id = $1', [state.data.userId]) as any;
+      if (user) {
+        await updateUserActivity(state.data.userId, user.role);
+      }
     }
 
     // Обработка выбора типа транспорта
@@ -683,12 +714,15 @@ https://пропуск.аносинопарк.рф
       return;
     }
 
-    const user = await dbGet('SELECT id FROM users WHERE "telegramId" = $1', [telegramId]) as any;
+    const user = await dbGet('SELECT id, role FROM users WHERE "telegramId" = $1', [telegramId]) as any;
     
     if (!user) {
       bot?.sendMessage(chatId, '❌ Ваш Telegram аккаунт не привязан. Используйте /link для привязки.');
       return;
     }
+
+    // Обновляем активность для пользователей и прорабов
+    await updateUserActivity(user.id, user.role);
 
     try {
       const passes = await dbAll(
