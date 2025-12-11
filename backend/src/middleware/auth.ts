@@ -29,7 +29,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     console.log('🔐 authenticate: Проверка пользователя', decoded.id, 'для', path);
     
     // Проверяем, не деактивирован ли пользователь
-    const { dbGet } = require('../database');
+    const { dbGet, dbRun } = require('../database');
     const user = await dbGet('SELECT "deactivatedAt", "deactivationDate" FROM users WHERE id = $1', [decoded.id]) as any;
     
     if (user) {
@@ -53,6 +53,15 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
           return res.status(403).json({ error: 'Аккаунт деактивирован' });
         }
       }
+    }
+    
+    // Обновляем время последней активности для пользователей и прорабов
+    // Для админов и охраны не обновляем
+    if (decoded.role === 'user' || decoded.role === 'foreman') {
+      // Обновляем асинхронно, не блокируя запрос
+      dbRun('UPDATE users SET "lastLoginAt" = NOW() WHERE id = $1', [decoded.id]).catch((err: any) => {
+        console.error('Ошибка обновления lastLoginAt:', err);
+      });
     }
     
     console.log('✅ authenticate: Пользователь', decoded.id, 'авторизован для', path);

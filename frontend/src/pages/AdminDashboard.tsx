@@ -587,7 +587,7 @@ const AdminDashboard = () => {
                     <th>Телефон</th>
                     <th>Роль</th>
                     <th>Дата создания</th>
-                    <th>Последний вход</th>
+                    <th>Последняя активность</th>
                     <th>Действия</th>
                   </tr>
                 </thead>
@@ -626,7 +626,7 @@ const AdminDashboard = () => {
                         )}
                       </td>
                       <td data-label="Дата создания">{new Date(u.createdAt).toLocaleDateString('ru-RU')}</td>
-                      <td data-label="Последний вход">
+                      <td data-label="Последняя активность">
                         {u.lastLoginAt ? (
                           <span title={new Date(u.lastLoginAt).toLocaleString('ru-RU')}>
                             {new Date(u.lastLoginAt).toLocaleString('ru-RU', { 

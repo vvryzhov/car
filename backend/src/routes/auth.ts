@@ -51,8 +51,11 @@ router.post(
         return res.status(401).json({ error: 'Неверный email или пароль' });
       }
 
-      // Обновляем время последнего входа
-      await dbRun('UPDATE users SET "lastLoginAt" = NOW() WHERE id = $1', [user.id]);
+      // Обновляем время последней активности для пользователей и прорабов
+      // Для админов и охраны не обновляем
+      if (user.role === 'user' || user.role === 'foreman') {
+        await dbRun('UPDATE users SET "lastLoginAt" = NOW() WHERE id = $1', [user.id]);
+      }
 
       // Получаем участки пользователя только для ролей user и foreman
       let plots: any[] = [];
