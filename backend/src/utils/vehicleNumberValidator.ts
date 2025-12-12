@@ -26,6 +26,9 @@ export const validateVehicleNumber = (number: string): ValidationResult => {
   // Формат Узбекистан: 01А123ВС (2 цифры, 1 буква, 3 цифры, 2 буквы)
   const uzbekistanFormat = /^\d{2}[АВЕКМНОРСТУХABCEHKMOPTXY]\d{3}[АВЕКМНОРСТУХABCEHKMOPTXY]{2}$/;
 
+  // Формат Беларусь: 1234АВ-7 или 1234AB7 (4 цифры, 2 буквы, 1 цифра региона)
+  const belarusFormat = /^\d{4}[АВЕКМНОРСТУХABCEHKMOPTXY]{2}-?\d$/;
+
   if (russianFormat.test(trimmed)) {
     return { valid: true };
   }
@@ -38,9 +41,13 @@ export const validateVehicleNumber = (number: string): ValidationResult => {
     return { valid: true };
   }
 
+  if (belarusFormat.test(trimmed)) {
+    return { valid: true };
+  }
+
   return {
     valid: false,
-    error: 'Неверный формат номера. Используйте формат РФ (А123БВ777 или A123BC777), Казахстан (123АВС01 или 123ABC01) или Узбекистан (01А123ВС или 01A123BC)'
+    error: 'Неверный формат номера. Используйте формат: РФ (А123БВ777 или A123BC777), Казахстан (123АВС01 или 123ABC01), Узбекистан (01А123ВС или 01A123BC) или Беларусь (1234АВ-7 или 1234AB7)'
   };
 };
 
@@ -89,6 +96,15 @@ export const formatVehicleNumber = (vehicleNumber: string): string => {
     const match = normalized.match(uzFormat);
     if (match) {
       return `${match[1]}${match[2]} ${match[3]} ${match[4]}`;
+    }
+  }
+
+  // Белорусский формат: 4 цифры, 2 буквы, 1 цифра региона (1234AB-7)
+  const byFormat = /^(\d{4})([АВЕКМНОРСТУХABCEHKMOPTXY]{2})-?(\d)$/i;
+  if (byFormat.test(normalized)) {
+    const match = normalized.match(byFormat);
+    if (match) {
+      return `${match[1]} ${match[2]}-${match[3]}`;
     }
   }
   
