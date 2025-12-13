@@ -32,6 +32,23 @@ FRONTEND_URL=http://localhost:8080
 # Telegram Bot Token (опционально, для работы Telegram бота)
 # Получите токен у @BotFather в Telegram
 # TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+
+# LPR Integration (для автоматического открытия шлагбаума)
+# Секретный токен для авторизации LPR Agent (ОБЯЗАТЕЛЬНО!)
+LPR_TOKEN=your-secret-lpr-token-here
+
+# LPR Configuration (опционально)
+# Время cooldown между проверками одного номера (секунды)
+LPR_COOLDOWN_SECONDS=15
+
+# Разрешённые статусы для проезда (через запятую)
+LPR_ALLOWED_STATUSES=pending
+
+# Разрешить повторный проезд после "Заехал" (true/false)
+LPR_ALLOW_REPEAT_AFTER_ENTERED=false
+
+# Временная зона для определения "сегодня" (для проверки заявок)
+TZ=Asia/Almaty
 ```
 
 ## Как изменить URL для ссылок восстановления пароля
