@@ -70,24 +70,28 @@ router.post(
       // Ищем активную заявку
       // Ищем разовые пропуска (entryDate = сегодня) и постоянные пропуска (isPermanent = true)
       const allowedStatuses = lprConfig.allowedStatuses;
+      
+      // Для постоянных пропусков разрешаем также статусы 'personal_vehicle' и 'activated'
+      // Для разовых пропусков используем только allowedStatuses
+      const permanentAllowedStatuses = [...allowedStatuses, 'personal_vehicle', 'activated'];
 
       const pass = await dbGet(
         `SELECT id, status, "entryDate", "vehicleNumber", plate_norm, "isPermanent"
          FROM passes
          WHERE plate_norm = $1
-           AND status = ANY($2)
            AND "deletedAt" IS NULL
            AND (
-             -- Постоянные пропуска (действуют всегда)
-             "isPermanent" = true
+             -- Постоянные пропуска (действуют всегда, с расширенным списком статусов)
+             ("isPermanent" = true AND status = ANY($2))
              OR
-             -- Разовые пропуска (действуют только в день въезда)
-             ("isPermanent" IS NULL OR "isPermanent" = false)
-             AND "entryDate" = $3
+             -- Разовые пропуска (действуют только в день въезда, с обычным списком статусов)
+             (("isPermanent" IS NULL OR "isPermanent" = false) 
+              AND "entryDate" = $3 
+              AND status = ANY($4))
            )
          ORDER BY "isPermanent" DESC, "createdAt" DESC
          LIMIT 1`,
-        [plateNorm, allowedStatuses, todayStr]
+        [plateNorm, permanentAllowedStatuses, todayStr, allowedStatuses]
       );
 
       if (pass) {
