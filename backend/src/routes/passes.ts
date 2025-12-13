@@ -3,6 +3,7 @@ import { body, validationResult } from 'express-validator';
 import { dbGet, dbRun, dbAll } from '../database';
 import { authenticate, requireRole, AuthRequest } from '../middleware/auth';
 import { validateVehicleNumber } from '../utils/vehicleNumberValidator';
+import { normalizePlate } from '../utils/plateNormalizer';
 import * as XLSX from 'xlsx';
 import { addClient, broadcastEvent, removeClient, getClientsCount } from '../services/sse';
 
@@ -253,11 +254,13 @@ router.post(
 
     // Преобразуем номер в верхний регистр
     const normalizedVehicleNumber = vehicleNumber.trim().toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
+    // Нормализуем номер для LPR
+    const plateNorm = normalizePlate(vehicleNumber);
 
     try {
       const result = await dbRun(
-        'INSERT INTO passes ("userId", "vehicleType", "vehicleBrand", "vehicleNumber", "entryDate", address, "plotNumber", comment) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
-        [req.user!.id, vehicleType, vehicleBrand || null, normalizedVehicleNumber, entryDate, address, plotNumber, comment || null]
+        'INSERT INTO passes ("userId", "vehicleType", "vehicleBrand", "vehicleNumber", "entryDate", address, "plotNumber", comment, plate_norm) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id',
+        [req.user!.id, vehicleType, vehicleBrand || null, normalizedVehicleNumber, entryDate, address, plotNumber, comment || null, plateNorm]
       );
 
       const pass = await dbGet('SELECT * FROM passes WHERE id = $1', [result.rows?.[0]?.id]) as any;
@@ -331,10 +334,15 @@ router.put(
       const normalizedVehicleNumber = vehicleNumber !== undefined 
         ? vehicleNumber.trim().toUpperCase().replace(/\s+/g, '').replace(/-/g, '')
         : pass.vehicleNumber;
+      
+      // Нормализуем номер для LPR, если он изменяется
+      const plateNorm = vehicleNumber !== undefined 
+        ? normalizePlate(vehicleNumber)
+        : pass.plate_norm || normalizePlate(pass.vehicleNumber);
 
       // Обновляем пропуск
       await dbRun(
-        'UPDATE passes SET "vehicleType" = $1, "vehicleBrand" = $2, "vehicleNumber" = $3, "entryDate" = $4, address = $5, "plotNumber" = $6, comment = $7, "securityComment" = $8, status = $9 WHERE id = $10',
+        'UPDATE passes SET "vehicleType" = $1, "vehicleBrand" = $2, "vehicleNumber" = $3, "entryDate" = $4, address = $5, "plotNumber" = $6, comment = $7, "securityComment" = $8, status = $9, plate_norm = $10 WHERE id = $11',
         [
           vehicleType !== undefined ? vehicleType : pass.vehicleType,
           vehicleBrand !== undefined ? vehicleBrand : pass.vehicleBrand,
@@ -345,6 +353,7 @@ router.put(
           updateComment,
           securityComment !== undefined ? securityComment : pass.securityComment,
           status !== undefined ? status : pass.status,
+          plateNorm,
           req.params.id,
         ]
       );

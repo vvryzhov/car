@@ -111,9 +111,17 @@ cottage-pass-system/
 - `DB_USER` - пользователь PostgreSQL (по умолчанию: postgres)
 - `DB_PASSWORD` - пароль PostgreSQL (по умолчанию: postgres)
 
+### Переменные окружения для LPR:
+- `LPR_TOKEN` - секретный токен для авторизации LPR Agent (обязательно)
+- `LPR_COOLDOWN_SECONDS` - время cooldown между проверками (по умолчанию: 15)
+- `LPR_ALLOWED_STATUSES` - разрешённые статусы для проезда (по умолчанию: pending)
+- `LPR_ALLOW_REPEAT_AFTER_ENTERED` - разрешить повторный проезд после "Заехал" (по умолчанию: false)
+- `TZ` - временная зона для определения "сегодня" (по умолчанию: Asia/Almaty)
+
 ### Таблицы:
 - `users` - пользователи системы
-- `passes` - заявки на пропуск
+- `passes` - заявки на пропуск (с полем `plate_norm` для LPR)
+- `lpr_events` - логи событий от LPR Agent
 
 База данных инициализируется автоматически при первом запуске backend сервера.
 
@@ -172,6 +180,80 @@ docker-compose up -d
 ```
 
 Приложение будет доступно на `http://localhost:8080`
+
+## LPR Integration API
+
+Сервис поддерживает интеграцию с LPR Agent для автоматического открытия шлагбаума.
+
+### Эндпоинты
+
+#### POST /api/lpr/check
+
+Проверяет, разрешён ли проезд для номера.
+
+**Заголовки:**
+- `X-LPR-Token: <LPR_TOKEN>` - обязательный
+
+**Request:**
+```json
+{
+  "plate": "A123BC777",
+  "gateId": "main",
+  "capturedAt": "2025-12-12T05:20:00+05:00",
+  "confidence": 0.91
+}
+```
+
+**Response (разрешено):**
+```json
+{
+  "allowed": true,
+  "reason": "ACTIVE_PASS_FOUND",
+  "passId": 12345,
+  "plateNorm": "А123ВВ777",
+  "cooldownSeconds": 15
+}
+```
+
+**Response (запрещено):**
+```json
+{
+  "allowed": false,
+  "reason": "NO_ACTIVE_PASS",
+  "cooldownSeconds": 15,
+  "plateNorm": "А123ВВ777"
+}
+```
+
+#### POST /api/lpr/event
+
+Сохраняет событие от LPR Agent.
+
+**Заголовки:**
+- `X-LPR-Token: <LPR_TOKEN>` - обязательный
+
+**Request:**
+```json
+{
+  "gateId": "main",
+  "eventType": "GATE_OPENED",
+  "eventAt": "2025-12-12T05:20:03+05:00",
+  "plate": "A123BC777",
+  "passId": 12345,
+  "requestId": "0d5b1c1f-1f3b-4e5b-aef9-2b49f7b6d7f2",
+  "confidence": 0.91,
+  "meta": {}
+}
+```
+
+**Response:**
+```json
+{
+  "ok": true
+}
+```
+
+Подробнее см. [LPR_INTEGRATION.md](./backend/LPR_INTEGRATION.md)
 
 Подробные инструкции по развертыванию см. в [DEPLOY.md](./DEPLOY.md)
 

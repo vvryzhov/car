@@ -6,6 +6,7 @@ import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
 import passRoutes from './routes/passes';
 import settingsRoutes from './routes/settings';
+import lprRoutes from './routes/lpr';
 import { initTelegramBot } from './services/telegramBot';
 
 dotenv.config();
@@ -30,6 +31,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/passes', passRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/lpr', lprRoutes);
 
 // Инициализация базы данных и запуск сервера
 initDatabase()

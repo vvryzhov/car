@@ -111,6 +111,16 @@ export const initDatabase = async () => {
       await dbRun('ALTER TABLE users ADD COLUMN "lastLoginAt" TIMESTAMP');
     }
 
+    // Добавляем поле sessionsRevokedAt, если его нет (для принудительного сброса сессий)
+    const sessionsRevokedAtCheck = await dbGet(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name='users' AND column_name='sessionsRevokedAt'
+    `);
+    if (!sessionsRevokedAtCheck) {
+      await dbRun('ALTER TABLE users ADD COLUMN "sessionsRevokedAt" TIMESTAMP');
+    }
+
     // Таблица заявок на пропуск
     await dbRun(`
       CREATE TABLE IF NOT EXISTS passes (
@@ -127,9 +137,20 @@ export const initDatabase = async () => {
         status VARCHAR(50) DEFAULT 'pending',
         "deletedAt" TIMESTAMP,
         "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE
       )
     `);
+
+    // Добавляем поле updatedAt, если его нет
+    const updatedAtCheck = await dbGet(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name='passes' AND column_name='updatedAt'
+    `);
+    if (!updatedAtCheck) {
+      await dbRun('ALTER TABLE passes ADD COLUMN "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+    }
 
     // Добавляем поле plotNumber, если его нет
     const plotNumberCheck = await dbGet(`
@@ -186,6 +207,95 @@ export const initDatabase = async () => {
       console.log('Поле isPermanent успешно добавлено');
     } else {
       console.log('Поле isPermanent уже существует в таблице passes');
+    }
+
+    // Добавляем поле plate_norm для нормализованных номеров (LPR)
+    const plateNormCheck = await dbGet(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name='passes' AND column_name='plate_norm'
+    `);
+    
+    if (!plateNormCheck) {
+      console.log('Добавление поля plate_norm в таблицу passes...');
+      await dbRun('ALTER TABLE passes ADD COLUMN plate_norm TEXT');
+      
+      // Заполняем plate_norm для существующих записей
+      // Динамический импорт для избежания циклических зависимостей
+      const normalizePlateModule = await import('./utils/plateNormalizer');
+      const normalizePlate = normalizePlateModule.normalizePlate;
+      const existingPasses = await dbAll('SELECT id, "vehicleNumber" FROM passes WHERE plate_norm IS NULL');
+      
+      for (const pass of existingPasses) {
+        const plateNorm = normalizePlate(pass.vehicleNumber);
+        await dbRun('UPDATE passes SET plate_norm = $1 WHERE id = $2', [plateNorm, pass.id]);
+      }
+      
+      console.log(`Поле plate_norm добавлено и заполнено для ${existingPasses.length} записей`);
+    } else {
+      console.log('Поле plate_norm уже существует в таблице passes');
+    }
+
+    // Создаем индекс для быстрого поиска по plate_norm, entryDate и status
+    const indexCheck = await dbGet(`
+      SELECT indexname 
+      FROM pg_indexes 
+      WHERE tablename = 'passes' AND indexname = 'idx_passes_plate_norm_entry_status'
+    `);
+    
+    if (!indexCheck) {
+      console.log('Создание индекса idx_passes_plate_norm_entry_status...');
+      await dbRun(`
+        CREATE INDEX idx_passes_plate_norm_entry_status 
+        ON passes(plate_norm, "entryDate", status) 
+        WHERE "deletedAt" IS NULL
+      `);
+      console.log('Индекс idx_passes_plate_norm_entry_status создан');
+    }
+
+    // Создаем таблицу lpr_events для логов событий LPR
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS lpr_events (
+        id BIGSERIAL PRIMARY KEY,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        gate_id TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        plate_raw TEXT,
+        plate_norm TEXT,
+        confidence NUMERIC,
+        pass_id BIGINT,
+        request_id UUID,
+        payload JSONB NOT NULL DEFAULT '{}'::jsonb
+      )
+    `);
+
+    // Создаем индексы для lpr_events
+    const eventsIndex1Check = await dbGet(`
+      SELECT indexname 
+      FROM pg_indexes 
+      WHERE tablename = 'lpr_events' AND indexname = 'idx_lpr_events_gate_created'
+    `);
+    
+    if (!eventsIndex1Check) {
+      await dbRun(`
+        CREATE INDEX idx_lpr_events_gate_created 
+        ON lpr_events(gate_id, created_at DESC)
+      `);
+      console.log('Индекс idx_lpr_events_gate_created создан');
+    }
+
+    const eventsIndex2Check = await dbGet(`
+      SELECT indexname 
+      FROM pg_indexes 
+      WHERE tablename = 'lpr_events' AND indexname = 'idx_lpr_events_plate_norm'
+    `);
+    
+    if (!eventsIndex2Check) {
+      await dbRun(`
+        CREATE INDEX idx_lpr_events_plate_norm 
+        ON lpr_events(plate_norm)
+      `);
+      console.log('Индекс idx_lpr_events_plate_norm создан');
     }
 
     // Таблица настроек SMTP
