@@ -15,14 +15,23 @@ const Settings = () => {
     from_name: '',
     frontend_url: '',
   });
+  const [lprSettings, setLprSettings] = useState({
+    lpr_token: '',
+    cooldown_seconds: 15,
+    allowed_statuses: 'pending',
+    allow_repeat_after_entered: false,
+    timezone: 'Asia/Almaty',
+  });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [testEmail, setTestEmail] = useState('');
+  const [activeTab, setActiveTab] = useState<'smtp' | 'lpr'>('smtp');
 
   useEffect(() => {
     fetchSettings();
+    fetchLprSettings();
   }, []);
 
   const fetchSettings = async () => {
@@ -40,9 +49,24 @@ const Settings = () => {
         frontend_url: response.data.frontend_url || '',
       });
     } catch (error) {
-      console.error('Ошибка загрузки настроек:', error);
+      console.error('Ошибка загрузки настроек SMTP:', error);
     } finally {
       setLoadingSettings(false);
+    }
+  };
+
+  const fetchLprSettings = async () => {
+    try {
+      const response = await api.get('/settings/lpr');
+      setLprSettings({
+        lpr_token: response.data.lpr_token || '',
+        cooldown_seconds: response.data.cooldown_seconds || 15,
+        allowed_statuses: response.data.allowed_statuses || 'pending',
+        allow_repeat_after_entered: response.data.allow_repeat_after_entered || false,
+        timezone: response.data.timezone || 'Asia/Almaty',
+      });
+    } catch (error) {
+      console.error('Ошибка загрузки настроек LPR:', error);
     }
   };
 
@@ -57,6 +81,48 @@ const Settings = () => {
       setSuccess('Настройки SMTP сохранены');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Ошибка сохранения настроек');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLprSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    try {
+      const response = await api.post('/settings/lpr', lprSettings);
+      setLprSettings({
+        ...lprSettings,
+        lpr_token: response.data.lpr_token || lprSettings.lpr_token,
+      });
+      setSuccess('Настройки LPR сохранены');
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Ошибка сохранения настроек LPR');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGenerateToken = async () => {
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    try {
+      const response = await api.post('/settings/lpr', {
+        ...lprSettings,
+        generate_new_token: true,
+      });
+      setLprSettings({
+        ...lprSettings,
+        lpr_token: response.data.lpr_token,
+      });
+      setSuccess('Новый токен LPR сгенерирован');
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Ошибка генерации токена');
     } finally {
       setLoading(false);
     }
@@ -124,6 +190,25 @@ const Settings = () => {
 
       <div className="container">
         <div className="card">
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '2px solid #e0e0e0', paddingBottom: '10px' }}>
+            <button
+              className={`btn ${activeTab === 'smtp' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('smtp')}
+              style={{ padding: '8px 16px' }}
+            >
+              Настройки SMTP
+            </button>
+            <button
+              className={`btn ${activeTab === 'lpr' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setActiveTab('lpr')}
+              style={{ padding: '8px 16px' }}
+            >
+              Настройки LPR
+            </button>
+          </div>
+
+          {activeTab === 'smtp' && (
+            <>
           <h2>Настройки почтового сервера (SMTP)</h2>
           <p style={{ color: '#666', marginBottom: '20px' }}>
             Настройте SMTP сервер для отправки писем с восстановлением пароля.
@@ -309,6 +394,138 @@ const Settings = () => {
               <li>Secure: true</li>
             </ul>
           </div>
+            </>
+          )}
+
+          {activeTab === 'lpr' && (
+            <>
+          <h2>Настройки LPR (Автоматическое открытие шлагбаума)</h2>
+          <p style={{ color: '#666', marginBottom: '20px' }}>
+            Настройте параметры интеграции с LPR Agent для автоматического открытия шлагбаума по распознаванию госномера.
+          </p>
+
+          <form onSubmit={handleLprSubmit}>
+            <div className="form-group" style={{ 
+              marginTop: '25px', 
+              paddingTop: '20px', 
+              borderTop: '2px solid #007bff',
+              backgroundColor: '#f8f9fa',
+              padding: '15px',
+              borderRadius: '6px'
+            }}>
+              <label htmlFor="lpr_token" style={{ fontWeight: 'bold', color: '#007bff', fontSize: '16px', display: 'block', marginBottom: '10px' }}>
+                🔑 LPR Token (секретный ключ)
+              </label>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  id="lpr_token"
+                  value={lprSettings.lpr_token}
+                  readOnly
+                  style={{ 
+                    flex: 1,
+                    padding: '10px',
+                    fontSize: '14px',
+                    fontFamily: 'monospace',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    backgroundColor: '#f5f5f5'
+                  }}
+                  placeholder="Токен будет сгенерирован автоматически"
+                />
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleGenerateToken}
+                  disabled={loading}
+                  style={{ whiteSpace: 'nowrap' }}
+                >
+                  {loading ? 'Генерация...' : 'Сгенерировать новый'}
+                </button>
+              </div>
+              <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '10px', lineHeight: '1.6' }}>
+                <strong>Важно:</strong> Этот токен используется для авторизации запросов от LPR Agent. 
+                Укажите его в настройках LPR Agent в поле "Pass API LPR Token". 
+                При генерации нового токена не забудьте обновить его в LPR Agent.
+              </small>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="cooldown_seconds">Cooldown (секунды)</label>
+              <input
+                type="number"
+                id="cooldown_seconds"
+                value={lprSettings.cooldown_seconds}
+                onChange={(e) => setLprSettings({ ...lprSettings, cooldown_seconds: parseInt(e.target.value) || 15 })}
+                required
+                min="1"
+                max="3600"
+              />
+              <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '5px' }}>
+                Время между проверками одного номера (1-3600 секунд)
+              </small>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="allowed_statuses">Разрешённые статусы</label>
+              <input
+                type="text"
+                id="allowed_statuses"
+                value={lprSettings.allowed_statuses}
+                onChange={(e) => setLprSettings({ ...lprSettings, allowed_statuses: e.target.value })}
+                required
+                placeholder="pending,approved"
+              />
+              <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '5px' }}>
+                Статусы заявок, при которых разрешён проезд (через запятую). Например: pending,approved
+              </small>
+            </div>
+
+            <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={lprSettings.allow_repeat_after_entered}
+                  onChange={(e) => setLprSettings({ ...lprSettings, allow_repeat_after_entered: e.target.checked })}
+                  style={{ marginRight: '8px' }}
+                />
+                Разрешить повторный проезд после "Заехал"
+              </label>
+              <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '5px' }}>
+                Если включено, автомобиль сможет проехать повторно даже после того, как статус заявки изменился на "Заехал"
+              </small>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="timezone">Временная зона</label>
+              <input
+                type="text"
+                id="timezone"
+                value={lprSettings.timezone}
+                onChange={(e) => setLprSettings({ ...lprSettings, timezone: e.target.value })}
+                required
+                placeholder="Asia/Almaty"
+              />
+              <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '5px' }}>
+                Временная зона для определения "сегодня" при проверке заявок (например: Asia/Almaty, Europe/Moscow)
+              </small>
+            </div>
+
+            {error && (
+              <div className="error" style={{ whiteSpace: 'pre-line', marginBottom: '15px' }}>
+                {error}
+              </div>
+            )}
+            {success && <div style={{ color: '#28a745', marginBottom: '15px' }}>{success}</div>}
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
+              <button type="submit" className="btn btn-primary" disabled={loading}>
+                {loading ? 'Сохранение...' : 'Сохранить'}
+              </button>
+            </div>
+          </form>
+            </>
+          )}
         </div>
       </div>
       <Footer />

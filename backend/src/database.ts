@@ -253,6 +253,39 @@ export const initDatabase = async () => {
       console.log('Индекс idx_passes_plate_norm_entry_status создан');
     }
 
+    // Создаем таблицу lpr_settings для хранения настроек LPR
+    await dbRun(`
+      CREATE TABLE IF NOT EXISTS lpr_settings (
+        id SERIAL PRIMARY KEY,
+        lpr_token TEXT,
+        cooldown_seconds INTEGER DEFAULT 15,
+        allowed_statuses TEXT DEFAULT 'pending',
+        allow_repeat_after_entered BOOLEAN DEFAULT false,
+        timezone TEXT DEFAULT 'Asia/Almaty',
+        "updatedAt" TIMESTAMPTZ DEFAULT NOW(),
+        "createdAt" TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    // Создаем единственную запись настроек, если её нет
+    const lprSettingsExists = await dbGet('SELECT id FROM lpr_settings LIMIT 1');
+    if (!lprSettingsExists) {
+      // Используем токен из .env, если есть, иначе сгенерируем случайный
+      const defaultToken = process.env.LPR_TOKEN || require('crypto').randomBytes(32).toString('hex');
+      await dbRun(
+        `INSERT INTO lpr_settings (lpr_token, cooldown_seconds, allowed_statuses, allow_repeat_after_entered, timezone)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          defaultToken,
+          parseInt(process.env.LPR_COOLDOWN_SECONDS || '15', 10),
+          process.env.LPR_ALLOWED_STATUSES || 'pending',
+          process.env.LPR_ALLOW_REPEAT_AFTER_ENTERED === 'true',
+          process.env.TZ || 'Asia/Almaty',
+        ]
+      );
+      console.log('Настройки LPR инициализированы');
+    }
+
     // Создаем таблицу lpr_events для логов событий LPR
     await dbRun(`
       CREATE TABLE IF NOT EXISTS lpr_events (

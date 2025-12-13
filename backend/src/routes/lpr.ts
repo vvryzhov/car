@@ -4,6 +4,7 @@ import { dbGet, dbRun, dbAll } from '../database';
 import { requireLprToken } from '../middleware/lprAuth';
 import { normalizePlate } from '../utils/plateNormalizer';
 import { randomUUID } from 'crypto';
+import { getLprConfig } from '../services/lprConfig';
 
 const router = express.Router();
 
@@ -34,20 +35,21 @@ router.post(
       // Нормализуем номер
       const plateNorm = normalizePlate(plate);
 
+      // Получаем настройки LPR из БД
+      const lprConfig = await getLprConfig();
+
       if (!plateNorm) {
         return res.status(200).json({
           allowed: false,
           reason: 'PLATE_INVALID',
           plateNorm: '',
-          cooldownSeconds: parseInt(process.env.LPR_COOLDOWN_SECONDS || '15', 10),
+          cooldownSeconds: lprConfig.cooldownSeconds,
         });
       }
 
       // Определяем "сегодня" в локальной временной зоне
-      // Используем временную зону из переменной окружения или по умолчанию Asia/Almaty
-      const timezone = process.env.TZ || 'Asia/Almaty';
       const today = new Date();
-      const todayStr = today.toLocaleDateString('en-CA', { timeZone: timezone }); // YYYY-MM-DD
+      const todayStr = today.toLocaleDateString('en-CA', { timeZone: lprConfig.timezone }); // YYYY-MM-DD
 
       // Записываем событие CHECK_SENT
       const requestId = randomUUID();
@@ -66,8 +68,8 @@ router.post(
       );
 
       // Ищем активную заявку
-      // MVP: ищем по plate_norm, entryDate = сегодня, status = 'pending' (Ожидает)
-      const allowedStatuses = (process.env.LPR_ALLOWED_STATUSES || 'pending').split(',').map(s => s.trim());
+      // MVP: ищем по plate_norm, entryDate = сегодня, status из настроек
+      const allowedStatuses = lprConfig.allowedStatuses;
 
       const pass = await dbGet(
         `SELECT id, status, "entryDate", "vehicleNumber", plate_norm
@@ -83,7 +85,7 @@ router.post(
 
       if (pass) {
         // Найдена активная заявка
-        const cooldownSeconds = parseInt(process.env.LPR_COOLDOWN_SECONDS || '15', 10);
+        const cooldownSeconds = lprConfig.cooldownSeconds;
 
         // Записываем событие DECISION_ALLOW
         await dbRun(
@@ -110,7 +112,7 @@ router.post(
         });
       } else {
         // Заявка не найдена
-        const cooldownSeconds = parseInt(process.env.LPR_COOLDOWN_SECONDS || '15', 10);
+        const cooldownSeconds = lprConfig.cooldownSeconds;
 
         // Записываем событие DECISION_DENY
         await dbRun(
@@ -155,12 +157,17 @@ router.post(
         // Игнорируем ошибку записи события
       }
 
+      // Получаем настройки для cooldown
+      const lprConfig = await getLprConfig().catch(() => ({
+        cooldownSeconds: parseInt(process.env.LPR_COOLDOWN_SECONDS || '15', 10),
+      }));
+
       // Возвращаем ошибку, но HTTP 200 чтобы агент не падал
       return res.status(200).json({
         allowed: false,
         reason: 'SYSTEM_TEMP_UNAVAILABLE',
         plateNorm: normalizePlate(plate),
-        cooldownSeconds: parseInt(process.env.LPR_COOLDOWN_SECONDS || '15', 10),
+        cooldownSeconds: lprConfig.cooldownSeconds,
       });
     }
   }
@@ -221,7 +228,8 @@ router.post(
 
       // Если событие GATE_OPENED или CAR_ENTERED и есть passId - обновляем статус заявки
       if ((eventType === 'GATE_OPENED' || eventType === 'CAR_ENTERED') && passId) {
-        const allowRepeatAfterEntered = process.env.LPR_ALLOW_REPEAT_AFTER_ENTERED === 'true';
+        const lprConfig = await getLprConfig();
+        const allowRepeatAfterEntered = lprConfig.allowRepeatAfterEntered;
 
         // Проверяем текущий статус
         const currentPass = await dbGet('SELECT status FROM passes WHERE id = $1', [passId]);
